@@ -9,7 +9,7 @@ object Unparser {
   def unparse(n: AstNode): String = {
     n match {
       case exp: Exp =>
-        n match {
+        exp match {
           case BinOpExp(leftexp, op, rightexp) =>
             "(" + unparse(leftexp) + unparse(op) + unparse(rightexp) + ")"
           case UnOpExp(op, exp) =>
