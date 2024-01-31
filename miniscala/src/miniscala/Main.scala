@@ -22,7 +22,10 @@ object Main {
 
       // execute the program, if enabled
       if (Options.run) {
+        // Functional approach:
         val result = Interpreter.eval(program)
+        // Object-oriented style:
+        // val result = program.eval()
         println(s"Output: $result")
       }
 
