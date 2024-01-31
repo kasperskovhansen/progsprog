@@ -1,14 +1,16 @@
 package miniscala
 
+import miniscala.Ast._;
+import miniscala.parser.Parser;
+
 object Week1 {
   def main(args: Array[String]): Unit = {
 
     // Create AST directly
-    import miniscala.Ast._;
     val a1 = BinOpExp(IntLit(2), MinusBinOp(), IntLit(10))
+    assert(Parser.parse(unparse(Parser.parse("(1+2)*3"))) == Parser.parse("(1+2)*3"))
 
     // Create AST with parser
-    import miniscala.parser.Parser;
     val a2 = Parser.parse("2-10")
     println("a2: " + a2)
 
@@ -27,6 +29,7 @@ object Week1 {
   }
 
   import miniscala.Ast._;
+
   def unparse(e: Exp): String = {
 
     e match {
