@@ -23,7 +23,8 @@ object Main {
       // execute the program, if enabled
       if (Options.run) {
         // Functional approach:
-        val result = Interpreter.eval(program)
+        val initialVarEnv = Interpreter.makeInitialVarEnv(program)
+        val result = Interpreter.eval(program, initialVarEnv)
         // Object-oriented style:
         // val result = program.eval()
         println(s"Output: $result")

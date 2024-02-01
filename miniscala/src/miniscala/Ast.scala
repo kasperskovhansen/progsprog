@@ -13,69 +13,100 @@ object Ast {
   sealed abstract class AstNode extends Positional
 
   /**
+    * Identifiers are just strings.
+    */
+  type Var = String
+
+  /**
+    * Common superclass for declarations and expressions.
+    */
+  sealed abstract class DeclOrExp extends AstNode
+
+  /**
    * Expressions.
    */
-  sealed abstract class Exp extends AstNode {
-    def eval(): Int
+  sealed abstract class Exp extends DeclOrExp {
+//    def eval(): Int
   }
 
-  case class BinOpExp(leftexp: Exp, op: BinOp, rightexp: Exp) extends Exp {
-    override def eval(): Int = op.eval(leftexp.eval(), rightexp.eval())
-  }
+  case class VarExp(x: Var) extends Exp
 
-  case class UnOpExp(op: UnOp, exp: Exp) extends Exp {
-    override def eval(): Int = op.eval(exp.eval())
-  }
+  case class BinOpExp(leftexp: Exp, op: BinOp, rightexp: Exp) extends Exp
+//  {
+//    override def eval(): Int = op.eval(leftexp.eval(), rightexp.eval())
+//  }
 
-  case class IntLit(c: Int) extends Exp {
-    override def eval(): Int = c
-  }
+  case class UnOpExp(op: UnOp, exp: Exp) extends Exp
+//  {
+//    override def eval(): Int = op.eval(exp.eval())
+//  }
+
+  case class IntLit(c: Int) extends Exp
+//  {
+//    override def eval(): Int = c
+//  }
+
+  case class BlockExp(vals: List[ValDecl], exp: Exp) extends Exp
 
   /**
    * Binary operators.
    */
   sealed abstract class BinOp extends AstNode {
-    def eval(leftval: Int, rightval: Int): Int
+//    def eval(leftval: Int, rightval: Int): Int
   }
 
-  case class PlusBinOp() extends BinOp {
-    override def eval(leftval: Int, rightval: Int): Int = leftval + rightval
-  }
+  case class PlusBinOp() extends BinOp
+//  {
+//    override def eval(leftval: Int, rightval: Int): Int = leftval + rightval
+//  }
 
-  case class MinusBinOp() extends BinOp {
-    override def eval(leftval: Int, rightval: Int): Int = leftval - rightval
-  }
+  case class MinusBinOp() extends BinOp
+//  {
+//    override def eval(leftval: Int, rightval: Int): Int = leftval - rightval
+//  }
 
-  case class MultBinOp() extends BinOp {
-    override def eval(leftval: Int, rightval: Int): Int = leftval * rightval
-  }
+  case class MultBinOp() extends BinOp
+//  {
+//    override def eval(leftval: Int, rightval: Int): Int = leftval * rightval
+//  }
 
-  case class DivBinOp() extends BinOp {
-    override def eval(leftval: Int, rightval: Int): Int = {
-      if (rightval == 0)
-        throw new MiniScalaError("Division by zero", pos)
-      leftval / rightval
-    }
-  }
+  case class DivBinOp() extends BinOp
+//  {
+//    override def eval(leftval: Int, rightval: Int): Int = {
+//      if (rightval == 0)
+//        throw new MiniScalaError("Division by zero", pos)
+//      leftval / rightval
+//    }
+//  }
 
-  case class ModuloBinOp() extends BinOp {
-    override def eval(leftval: Int, rightval: Int): Int = leftval % rightval
-  }
+  case class ModuloBinOp() extends BinOp
+//  {
+//    override def eval(leftval: Int, rightval: Int): Int = leftval % rightval
+//  }
 
-  case class MaxBinOp() extends BinOp {
-    override def eval(leftval: Int, rightval: Int): Int = Math.max(leftval, rightval)
-  }
+  case class MaxBinOp() extends BinOp
+//  {
+//    override def eval(leftval: Int, rightval: Int): Int = Math.max(leftval, rightval)
+//  }
+
+  /**
+    * Declarations.
+    */
+  sealed abstract class Decl extends DeclOrExp
+
+  case class ValDecl(x: Var, exp: Exp) extends Decl
 
   /**
    * Unary operators.
    */
   sealed abstract class UnOp extends AstNode {
-    def eval(value: Int): Int
+//    def eval(value: Int): Int
   }
 
-  case class NegUnOp() extends UnOp {
-    override def eval(value: Int): Int = -value
-  }
+  case class NegUnOp() extends UnOp
+//  {
+//    override def eval(value: Int): Int = -value
+//  }
 
   /**
    * Exception with a message and (optionally) a source code position.
