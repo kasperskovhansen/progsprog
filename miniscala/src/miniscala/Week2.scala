@@ -7,11 +7,19 @@ object Week2 {
   def main(args: Array[String]): Unit = {
 
     // Square function
+    println("Square")
     println(square(Cons(2, Cons(5, Cons(3, Nil)))))
 
     // Ordered function
+    println("Ordered")
     println(ordered(Cons(-15, Cons(-1, Cons(5, Cons(10, Nil))))))
+    println(ordered(Cons(-15, Cons(-15, Cons(5, Cons(10, Nil))))))
     println(ordered(Cons(-15, Cons(10, Cons(5, Cons(10, Nil))))))
+
+    // Odd
+    println("Odd")
+    println(odd(Cons(2, Cons(5, Cons(3, Nil)))))
+    println(odd(Cons(3, Cons(5, Cons(4, Cons(7, Cons(10, Nil)))))))
 
   }
 
@@ -21,11 +29,19 @@ object Week2 {
 
   def ordered(il: IntList): Boolean = {
     @tailrec
-    def ord(il: IntList, last: Int): Boolean =
+    def ord(il: IntList, prev: Int): Boolean =
       il match
         case IntList.Nil => true
-        case Cons(x, xs) => if (x > last) ord(xs, x) else false
+        case Cons(x, xs) => if (x >= prev) ord(xs, x) else false
     ord(il, Int.MinValue)
+  }
+
+  def odd(il: IntList): IntList = {
+    def odd_item(il: IntList, isOdd: Boolean): IntList =
+      il match
+        case IntList.Nil => IntList.Nil
+        case Cons(x, xs) => if (isOdd) Cons(x, odd_item(xs, !isOdd)) else odd_item(xs, !isOdd)
+    odd_item(il, true)
   }
 
   type Var = String
