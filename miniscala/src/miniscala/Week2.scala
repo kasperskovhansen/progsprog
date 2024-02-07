@@ -144,6 +144,17 @@ object Week2 {
     Simplifier.test("5max5", "5")
     Simplifier.test("-5", "(-5)")
     Simplifier.test("-0", "0")
+
+
+    println("VarEnv:")
+    // Test VarEnv
+    var env = makeEmpty()
+    env = env.extend("x", 5)
+    env = env.extend("y", 7)
+    println(env.lookup("x")) // 5
+//    var env2 = makeEmpty()
+//    println(env2.lookup("x")) // 5
+
   }
 
   def square(il: IntList): IntList = il match
@@ -179,11 +190,20 @@ object Week2 {
 
   type Var = String
 
-  sealed abstract class VarEnv
+  sealed abstract class VarEnv {
+    def extend(x: Var, v: Int): VarEnv = ConsVarEnv(x, v, this)
+    def lookup(x: Var): Int
+  }
 
-  private case class ConsVarEnv(x: Var, v: Int, next: VarEnv) extends VarEnv
+  private case class ConsVarEnv(x: Var, v: Int, next: VarEnv) extends VarEnv {
+    def lookup(x: Var): Int = {
+      if (this.x.equals(x)) v else next.lookup(x)
+    }
+  }
 
-  private case object NilVarEnv extends VarEnv
+  private case object NilVarEnv extends VarEnv {
+    def lookup(x: Var): Int = throw new RuntimeException(s"Variable ${x} not found")
+  }
 
   def makeEmpty(): VarEnv = NilVarEnv
 
