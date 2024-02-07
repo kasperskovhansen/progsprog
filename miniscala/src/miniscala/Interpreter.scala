@@ -14,7 +14,9 @@ object Interpreter {
   def eval(e: Exp, venv: VarEnv): Int = {
     e match {
       case IntLit(c) => c
-      case VarExp(x) => venv(x)
+      case VarExp(x) =>
+        trace(s"Looking up variable $x")
+        venv(x)
       case BinOpExp(leftexp, op, rightexp) =>
         val leftval = eval(leftexp, venv)
         val rightval = eval(rightexp, venv)
@@ -48,10 +50,13 @@ object Interpreter {
             -expval
         }
       case BlockExp(vals, exp) =>
+        trace("Opening block")
         var venv1 = venv
         for (d <- vals)
           venv1 = venv1 + (d.x -> eval(d.exp, venv1))
-        eval(exp, venv1)
+        val result = eval(exp, venv1)
+        trace("Closing block")
+        result
     }
   }
 

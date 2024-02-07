@@ -1,7 +1,10 @@
 package miniscala
 
 import IntList.{Cons, IntList, Nil}
-import miniscala.Ast.{BinOpExp, Exp, ValDecl}
+import miniscala.Ast.{BinOpExp, Exp, MinusBinOp, ValDecl}
+import miniscala.Unparser.unparse
+import miniscala.Simplifier.simplify
+import miniscala.parser.Parser
 
 import scala.annotation.tailrec
 
@@ -79,8 +82,49 @@ object Week2 {
 
     // Add Nat function
     println("Mult Nat function")
-    println(mult(Succ(Succ(Succ(Zero))), Succ(Succ(Succ(Succ(Zero))))))
+    println(decode(mult(encode(2), encode(3))))
 
+    // Add Nat function
+    println("Power Nat function")
+    println(decode(power(encode(2), encode(3))))
+
+    // Decrement Nat function
+    println("Decrement Nat function")
+    println(decode(decrement(encode(15))))
+    println(decode(decrement(encode(0))))
+
+    // HANDIN
+    println(
+      unparse(
+        Ast.BinOpExp(
+          Ast.IntLit(5), Ast.PlusBinOp(),
+          Ast.BinOpExp(
+            Ast.BlockExp(
+              vals = List(
+                Ast.ValDecl(
+                  "x", Ast.BinOpExp(
+                    Ast.IntLit(8), Ast.MinusBinOp(), Ast.IntLit(2)
+                  )
+                ),
+                Ast.ValDecl(
+                  "y", Ast.IntLit(13)
+                )
+              ), exp = Ast.BinOpExp(
+                Ast.VarExp("x"), Ast.PlusBinOp(), Ast.IntLit(10)
+              )
+            ), Ast.MultBinOp(), Ast.IntLit(3)
+          )
+        )
+      )
+    )
+
+    println(simplify(Parser.parse("5-5")))
+    println(simplify(Parser.parse("5-3")))
+
+    Simplifier.test("5+0", "5")
+    Simplifier.test("0+4", "4")
+    Simplifier.test("0+0", "0")
+    Simplifier.test("5-5", "0")
   }
 
   def square(il: IntList): IntList = il match
@@ -154,6 +198,7 @@ object Week2 {
     def dec(nat: Nat, acc: Int): Int = nat match
       case Zero => acc
       case Succ(n) => 1 + dec(n, acc)
+
     dec(nat, 0)
   }
 
@@ -162,6 +207,7 @@ object Week2 {
     def enc(value: Int, acc: Nat): Nat = {
       if (value == 0) acc else enc(value - 1, Succ(acc))
     }
+
     enc(value, Zero)
   }
 
@@ -169,14 +215,17 @@ object Week2 {
     case Zero => y
     case Succ(n) => Succ(add(n, y))
 
-  def mult(x: Nat, y: Nat): Nat = {
-    def mul(accx: Nat, accy: Nat): Nat = accx match
-      case Zero => accy match
-        case Zero => accx
-        case Succ(n) => mul(x, n)
-      case Succ(n) => Succ(mul(n, accy))
-    mul(x, y)
-  }
+  def mult(x: Nat, y: Nat): Nat = x match
+    case Zero => Zero
+    case Succ(n) => add(mult(n, y), y)
+
+  def power(x: Nat, y: Nat): Nat = y match
+    case Zero => Succ(Zero)
+    case Succ(n) => mult(x, power(x, n))
+
+  def decrement(x: Nat): Nat = x match
+    case Zero => Zero
+    case Succ(n) => n
 
 }
 
