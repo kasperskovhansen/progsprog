@@ -122,9 +122,28 @@ object Week2 {
     println(simplify(Parser.parse("5-3")))
 
     Simplifier.test("5+0", "5")
+    Simplifier.test("3+4", "(3+4)")
     Simplifier.test("0+4", "4")
     Simplifier.test("0+0", "0")
     Simplifier.test("5-5", "0")
+    Simplifier.test("4-5", "(4-5)")
+    Simplifier.test("1*5", "5")
+    Simplifier.test("5*3", "(5*3)")
+    Simplifier.test("1*3", "3")
+    Simplifier.test("1*0", "0")
+    Simplifier.test("0*1", "0")
+    Simplifier.test("0*0", "0")
+    Simplifier.test("5/0", "(5/0)")
+    Simplifier.test("5/1", "5")
+    Simplifier.test("0/5", "0")
+    Simplifier.test("0%5", "0")
+    Simplifier.test("5%1", "5")
+    Simplifier.test("5%3", "(5%3)")
+    Simplifier.test("5max4", "(5max4)")
+    Simplifier.test("4max5", "(4max5)")
+    Simplifier.test("5max5", "5")
+    Simplifier.test("-5", "(-5)")
+    Simplifier.test("-0", "0")
   }
 
   def square(il: IntList): IntList = il match
