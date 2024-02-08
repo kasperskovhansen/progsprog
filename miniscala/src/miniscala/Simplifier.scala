@@ -40,6 +40,10 @@ object Simplifier {
           case _ => exp
     case _ => exp
 
+  /**
+     Simplifier.test
+   * Test of the simplification function
+   */
   def test(exp: String, simpExp: String): Boolean = {
     println(s"Input: $exp")
     println(s"Expected output: $simpExp")

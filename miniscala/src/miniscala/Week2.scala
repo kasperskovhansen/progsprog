@@ -121,6 +121,10 @@ object Week2 {
     println(simplify(Parser.parse("5-5")))
     println(simplify(Parser.parse("5-3")))
 
+    // Her koerer vi en masse tests med Simplifier.test()
+    // Foerste parameter: Input
+    // Anden parameter: Expected output
+    // I konsollen bliver resultatet printet
     Simplifier.test("5+0", "5")
     Simplifier.test("3+4", "(3+4)")
     Simplifier.test("0+4", "4")
