@@ -27,7 +27,7 @@ object Unparser {
           case MultBinOp() => "*"
           case DivBinOp() => "/"
           case ModuloBinOp() => "%"
-          case MaxBinOp() => "max"
+          case MaxBinOp() => " max "
         }
       case op: UnOp =>
         op match {

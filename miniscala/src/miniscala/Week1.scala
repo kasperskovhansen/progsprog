@@ -40,7 +40,7 @@ object Week1 {
           case MultBinOp() => "*"
           case DivBinOp() => "/"
           case ModuloBinOp() => "%"
-          case MaxBinOp() => "max"
+          case MaxBinOp() => " max "
         }
         "(" + unparse(leftexp) + stringBinOp + unparse(rightexp) + ")"
       }
