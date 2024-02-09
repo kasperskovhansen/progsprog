@@ -20,28 +20,28 @@ object Interpreter {
       case BinOpExp(leftexp, op, rightexp) =>
         val leftval = eval(leftexp, venv)
         val rightval = eval(rightexp, venv)
-        op match {
+        val res = op match {
           case PlusBinOp() =>
-            trace("Adding " + leftval + " and " + rightval)
             leftval + rightval
           case MinusBinOp() =>
-            trace("Subtracting " + leftval + " and " + rightval)
             leftval - rightval
           case MultBinOp() =>
-            trace("Multiplying " + leftval + " and " + rightval)
             leftval * rightval
           case DivBinOp() =>
-            trace("Dividing " + leftval + " and " + rightval)
             if (rightval == 0)
               throw InterpreterError(s"Division by zero", op)
             leftval / rightval
           case ModuloBinOp() =>
-            trace(leftval + " modulo " + rightval)
+            if (rightval == 0)
+              throw InterpreterError(s"Modulo by zero", op)
             leftval % rightval
           case MaxBinOp() =>
-            trace("Max of " + leftval + " and " + rightval)
             if (leftval >= rightval) leftval else rightval
         }
+        // Doesn't trace the initial expression, only the result and the intermediate steps.
+        // This keeps the trace output output more concise.
+        trace(s"Evaluating ($leftval ${Unparser.unparse(op)} $rightval) to $res")
+        res
       case UnOpExp(op, exp) =>
         val expval = eval(exp, venv)
         op match {

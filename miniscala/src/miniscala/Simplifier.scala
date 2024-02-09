@@ -33,7 +33,7 @@ object Simplifier {
           case _ => exp
         case Ast.ModuloBinOp() => (leftSimp, rightSimp) match
           case (IntLit(a), IntLit(b)) if a == 0 && b != 0 => IntLit(0)
-          case (e, IntLit(b)) if b == 1 => e
+          case (e, IntLit(b)) if b == 1 => IntLit(0)
           case _ => exp
         case Ast.MaxBinOp() => (leftSimp, rightSimp) match
           case (IntLit(a), IntLit(b)) if a == b => IntLit(a)
