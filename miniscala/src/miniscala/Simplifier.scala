@@ -39,7 +39,7 @@ object Simplifier {
           case _ => default
     case BlockExp(valDecls, exp) => {
       val newValDecls = valDecls.map((decl) => decl match {
-        case ValDecl(x, e) => ValDecl(x, simplify(e))
+        case ValDecl(x, t, e) => ValDecl(x, t, simplify(e))
       })
       BlockExp(newValDecls, simplify(exp))
     }

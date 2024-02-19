@@ -37,12 +37,12 @@ object Week2 {
             Ast.BlockExp(
               vals = List(
                 Ast.ValDecl(
-                  "x", Ast.BinOpExp(
+                  "x", Option(Ast.IntType()), Ast.BinOpExp(
                     Ast.IntLit(8), Ast.MinusBinOp(), Ast.IntLit(2)
                   )
                 ),
                 Ast.ValDecl(
-                  "y", Ast.IntLit(13)
+                  "y", Option(Ast.IntType()), Ast.IntLit(13)
                 )
               ), exp = Ast.BinOpExp(
                 Ast.VarExp("x"), Ast.PlusBinOp(), Ast.IntLit(10)
@@ -102,12 +102,12 @@ object Week2 {
             Ast.BlockExp(
               vals = List(
                 Ast.ValDecl(
-                  "x", Ast.BinOpExp(
+                  "x", Option(Ast.IntType()), Ast.BinOpExp(
                     Ast.IntLit(8), Ast.MinusBinOp(), Ast.IntLit(2)
                   )
                 ),
                 Ast.ValDecl(
-                  "y", Ast.IntLit(13)
+                  "y", Option(Ast.IntType()), Ast.IntLit(13)
                 )
               ), exp = Ast.BinOpExp(
                 Ast.VarExp("x"), Ast.PlusBinOp(), Ast.IntLit(10)
@@ -156,8 +156,8 @@ object Week2 {
     env = env.extend("x", 5)
     env = env.extend("y", 7)
     println(env.lookup("x")) // 5
-//    var env2 = makeEmpty()
-//    println(env2.lookup("x")) // 5
+    //    var env2 = makeEmpty()
+    //    println(env2.lookup("x")) // 5
 
   }
 
@@ -196,6 +196,7 @@ object Week2 {
 
   sealed abstract class VarEnv {
     def extend(x: Var, v: Int): VarEnv = ConsVarEnv(x, v, this)
+
     def lookup(x: Var): Int
   }
 
