@@ -53,9 +53,12 @@ object Interpreter {
         trace("Opening block")
         var venv1 = venv
         for (d <- vals)
-          venv1 = venv1 + (d.x -> eval(d.exp, venv1))
+          val newVal = eval(d.exp, venv1)
+          trace(s"Binding $newVal to $d.x")
+          venv1 = venv1 + (d.x -> newVal)
         val result = eval(exp, venv1)
         trace("Closing block")
+        trace(s"Block evaluated to $result")
         result
     }
   }

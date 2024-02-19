@@ -16,9 +16,13 @@ object Unparser {
             "(" + unparse(op) + unparse(exp) + ")"
           case IntLit(c) => c.toString
           case VarExp(v) => v
-          case BlockExp(vals, exp) => s"{${vals.foldLeft("") {
-            case (acc, valDecl) => acc + unparse(valDecl) + ";"
-          }}${unparse(exp)}}"
+          case BlockExp(vals, exp) => {
+            val declarationsString =
+              vals.foldLeft("") {
+                case (acc, valDecl) => acc + unparse(valDecl) + ";"
+              }
+            s"{${declarationsString}${unparse(exp)}}"
+          }
         }
       case op: BinOp =>
         op match {
@@ -35,7 +39,7 @@ object Unparser {
         }
       case decl: Decl =>
         decl match
-          case ValDecl(x, exp) => s"val $x=${unparse(exp)}"
+          case ValDecl(x, exp) => s"val $x = ${unparse(exp)}"
     }
   } // this unparse function can be used for all kinds of AstNode objects, including Exp objects (see Ast.scala)
 }
