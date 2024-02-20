@@ -39,7 +39,6 @@ object Week3 {
     println(Unparser.unparse(Parser.parse("5 == 5")))
     println(Unparser.unparse(Parser.parse("5 == 2")))
     println(Unparser.unparse(Parser.parse("!true")))
-AndBinOp
   }
 }
 

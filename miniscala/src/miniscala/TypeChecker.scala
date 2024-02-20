@@ -4,18 +4,18 @@ import miniscala.Ast.*
 import miniscala.Unparser.unparse
 
 /**
-  * Type checker for MiniScala.
-  */
+ * Type checker for MiniScala.
+ */
 object TypeChecker {
 
   type VarTypeEnv = Map[Var, Type]
 
   def typeCheck(e: Exp, vtenv: VarTypeEnv): Type = e match {
     case IntLit(_) => IntType()
-    case BoolLit(_) => ???
-    case FloatLit(_) => ???
-    case StringLit(_) => ???
-    case VarExp(x) => ???
+    case BoolLit(_) => BoolType()
+    case FloatLit(_) => FloatType()
+    case StringLit(_) => StringType()
+    case VarExp(x) => vtenv.getOrElse(x, throw TypeError(s"Unknown identifier $x", e))
     case BinOpExp(leftexp, op, rightexp) =>
       val lefttype = typeCheck(leftexp, vtenv)
       val righttype = typeCheck(rightexp, vtenv)
@@ -33,13 +33,63 @@ object TypeChecker {
             case (FloatType(), StringType()) => StringType()
             case _ => throw TypeError(s"Type mismatch at '+', unexpected types ${unparse(lefttype)} and ${unparse(righttype)}", op)
           }
-        case MinusBinOp() | MultBinOp() | DivBinOp() | ModuloBinOp() | MaxBinOp() => ???
-        case EqualBinOp() => ???
-        case LessThanBinOp() | LessThanOrEqualBinOp() => ???
-        case AndBinOp() | OrBinOp() => ???
+        case MinusBinOp() | MultBinOp() | DivBinOp() | ModuloBinOp() | MaxBinOp() =>
+          (lefttype, righttype) match {
+            case (IntType(), IntType()) => IntType()
+            case (FloatType(), FloatType()) => FloatType()
+            case (IntType(), FloatType()) => FloatType()
+            case (FloatType(), IntType()) => FloatType()
+            case _ => throw TypeError(s"Type mismatch at '${unparse(op)}', unexpected types ${unparse(lefttype)} and ${unparse(righttype)}", op)
+          }
+        case EqualBinOp() =>
+          (lefttype, righttype) match {
+            case (IntType(), IntType()) => BoolType()
+            case (FloatType(), FloatType()) => BoolType()
+            case (IntType(), FloatType()) => BoolType()
+            case (FloatType(), IntType()) => BoolType()
+            case (StringType(), StringType()) => BoolType()
+            case (BoolType(), BoolType()) => BoolType()
+            case _ => throw TypeError(s"Type mismatch at '==', unexpected types ${unparse(lefttype)} and ${unparse(righttype)}", op)
+          }
+        case LessThanBinOp() | LessThanOrEqualBinOp() =>
+          (lefttype, righttype) match {
+            case (IntType(), IntType()) => BoolType()
+            case (FloatType(), FloatType()) => BoolType()
+            case (IntType(), FloatType()) => BoolType()
+            case (FloatType(), IntType()) => BoolType()
+            case (StringType(), StringType()) => BoolType()
+            case _ => throw TypeError(s"Type mismatch at ${unparse(op)}, unexpected types ${unparse(lefttype)} and ${unparse(righttype)}", op)
+          }
+        case AndBinOp() | OrBinOp() =>
+          (lefttype, righttype) match {
+            case (BoolType(), BoolType()) => BoolType()
+            case _ => throw TypeError(s"Type mismatch at ${unparse(op)}, unexpected types ${unparse(lefttype)} and ${unparse(righttype)}", op)
+          }
       }
-    case UnOpExp(op, exp) => ???
-    case IfThenElseExp(condexp, thenexp, elseexp) => ???
+    case UnOpExp(op, exp) =>
+      val exptype = typeCheck(exp, vtenv)
+      op match {
+        case NegUnOp() =>
+          exptype match {
+            case IntType() => IntType()
+            case FloatType() => FloatType()
+            case _ => throw TypeError(s"Type mismatch at ${unparse(op)}, unexpected type ${unparse(exptype)}", op)
+          }
+        case NotUnOp() =>
+          exptype match {
+            case BoolType() => BoolType()
+            case _ => throw TypeError(s"Type mismatch at ${unparse(op)}, unexpected type ${unparse(exptype)}", op)
+          }
+      }
+    case IfThenElseExp(condexp, thenexp, elseexp) =>
+      val condtype = typeCheck(condexp, vtenv)
+      val thentype = typeCheck(thenexp, vtenv)
+      val elsetype = typeCheck(elseexp, vtenv)
+      if (condtype != BoolType())
+        throw TypeError(s"Type mismatch at if condition: Unexpected type ${unparse(condtype)}", e)
+      if (thentype != elsetype)
+        throw TypeError(s"Type mismatch at if, then and else have different types ${unparse(thentype)} and ${unparse(elsetype)}", e)
+      thentype
     case BlockExp(vals, exp) =>
       var vtenv1 = vtenv
       for (d <- vals) {
@@ -47,25 +97,33 @@ object TypeChecker {
         checkTypesEqual(t, d.opttype, d)
         vtenv1 = vtenv1 + (d.x -> d.opttype.getOrElse(t))
       }
-      ???
-    case TupleExp(exps) => TupleType(???)
+      typeCheck(exp, vtenv1)
+    case TupleExp(exps) => TupleType(exps.map(e => typeCheck(e, vtenv)))
     case MatchExp(exp, cases) =>
       val exptype = typeCheck(exp, vtenv)
       exptype match {
         case TupleType(ts) =>
+          var returnType = Option.empty[Type]
           for (c <- cases) {
             if (ts.length == c.pattern.length) {
-              ???
+              val newVtenv = vtenv ++ c.pattern.zip(ts)
+              val expReturnType = typeCheck(c.exp, newVtenv)
+              returnType match
+                case Some(value) if returnType != expReturnType =>
+                  throw TypeError(s"Type mismatch at match return type. " +
+                    s"All cases must have the same return type: " +
+                    s"Expected type ${unparse(returnType)}, found type ${unparse(expReturnType)}", e)
+                case None => returnType = Option(expReturnType)
             }
           }
-          throw TypeError(s"No case matches type ${unparse(exptype)}", e)
+          returnType.getOrElse(throw TypeError(s"Match expression must have at least one case", e))
         case _ => throw TypeError(s"Tuple expected at match, found ${unparse(exptype)}", e)
       }
   }
 
   /**
-    * Checks that the types `t1` and `ot2` are equal (if present), throws type error exception otherwise.
-    */
+   * Checks that the types `t1` and `ot2` are equal (if present), throws type error exception otherwise.
+   */
   def checkTypesEqual(t1: Type, ot2: Option[Type], n: AstNode): Unit = ot2 match {
     case Some(t2) =>
       if (t1 != t2)
@@ -74,8 +132,8 @@ object TypeChecker {
   }
 
   /**
-    * Builds an initial type environment, with a type for each free variable in the program.
-    */
+   * Builds an initial type environment, with a type for each free variable in the program.
+   */
   def makeInitialVarTypeEnv(program: Exp): VarTypeEnv = {
     var vtenv: VarTypeEnv = Map()
     for (x <- Vars.freeVars(program))
@@ -84,7 +142,7 @@ object TypeChecker {
   }
 
   /**
-    * Exception thrown in case of MiniScala type errors.
-    */
+   * Exception thrown in case of MiniScala type errors.
+   */
   class TypeError(msg: String, node: AstNode) extends MiniScalaError(s"Type error: $msg", node.pos)
 }

@@ -26,9 +26,9 @@ object Interpreter {
 
   def eval(e: Exp, venv: VarEnv): Val = e match {
     case IntLit(c) => IntVal(c)
-    case BoolLit(c) => ???
-    case FloatLit(c) => ???
-    case StringLit(c) => ???
+    case BoolLit(c) => BoolVal(c)
+    case FloatLit(c) => FloatVal(c)
+    case StringLit(c) => StringVal(c)
     case VarExp(x) =>
       venv.getOrElse(x, throw InterpreterError(s"Unknown identifier '$x'", e))
     case BinOpExp(leftexp, op, rightexp) =>
@@ -46,10 +46,27 @@ object Interpreter {
             case (StringVal(v1), FloatVal(v2)) => StringVal(v1 + v2.toString)
             case (IntVal(v1), StringVal(v2)) => StringVal(v1.toString + v2)
             case (FloatVal(v1), StringVal(v2)) => StringVal(v1.toString + v2)
-            case _ => throw InterpreterError(s"Type mismatch at '+', unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
+            case _ => throw InterpreterError(s"Type mismatch at '+', " +
+              s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
           }
-        case MinusBinOp() => ???
-        case MultBinOp() => ???
+        case MinusBinOp() =>
+          (leftval, rightval) match {
+            case (IntVal(v1), IntVal(v2)) => IntVal(v1 - v2)
+            case (FloatVal(v1), FloatVal(v2)) => FloatVal(v1 - v2)
+            case (IntVal(v1), FloatVal(v2)) => FloatVal(v1 - v2)
+            case (FloatVal(v1), IntVal(v2)) => FloatVal(v1 - v2)
+            case _ => throw InterpreterError(s"Type mismatch at '-', " +
+              s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
+          }
+        case MultBinOp() =>
+          (leftval, rightval) match {
+            case (IntVal(v1), IntVal(v2)) => IntVal(v1 * v2)
+            case (FloatVal(v1), FloatVal(v2)) => FloatVal(v1 * v2)
+            case (IntVal(v1), FloatVal(v2)) => FloatVal(v1 * v2)
+            case (FloatVal(v1), IntVal(v2)) => FloatVal(v1 * v2)
+            case _ => throw InterpreterError(s"Type mismatch at '*', " +
+              s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
+          }
         case DivBinOp() =>
           if (rightval == IntVal(0) || rightval == FloatVal(0.0f))
             throw InterpreterError(s"Division by zero", op)
@@ -58,55 +75,136 @@ object Interpreter {
             case (FloatVal(v1), FloatVal(v2)) => FloatVal(v1 / v2)
             case (IntVal(v1), FloatVal(v2)) => FloatVal(v1 / v2)
             case (FloatVal(v1), IntVal(v2)) => FloatVal(v1 / v2)
-            case _ => throw InterpreterError(s"Type mismatch at '/', unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
+            case _ => throw InterpreterError(s"Type mismatch at '/', " +
+              s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
           }
-        case ModuloBinOp() => ???
-        case EqualBinOp() => ???
-        case LessThanBinOp() => ???
-        case LessThanOrEqualBinOp() => ???
-        case MaxBinOp() => ???
-        case AndBinOp() => ???
-        case OrBinOp() => ???
+        case ModuloBinOp() =>
+          if (rightval == IntVal(0) || rightval == FloatVal(0.0f))
+            throw InterpreterError(s"Modulo by zero", op)
+          (leftval, rightval) match {
+            case (IntVal(v1), IntVal(v2)) => IntVal(v1 % v2)
+            case (FloatVal(v1), FloatVal(v2)) => FloatVal(v1 % v2)
+            case (IntVal(v1), FloatVal(v2)) => FloatVal(v1 % v2)
+            case (FloatVal(v1), IntVal(v2)) => FloatVal(v1 % v2)
+            case _ => throw InterpreterError(s"Type mismatch at '%', " +
+              s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
+          }
+        case EqualBinOp() =>
+          (leftval, rightval) match {
+            case (IntVal(v1), IntVal(v2)) => BoolVal(v1 == v2)
+            case (FloatVal(v1), FloatVal(v2)) => BoolVal(v1 == v2)
+            case (IntVal(v1), FloatVal(v2)) => BoolVal(v1 == v2)
+            case (FloatVal(v1), IntVal(v2)) => BoolVal(v1 == v2)
+            case (BoolVal(v1), BoolVal(v2)) => BoolVal(v1 == v2)
+            case (StringVal(v1), StringVal(v2)) => BoolVal(v1 == v2)
+            case _ => throw InterpreterError(s"Type mismatch at '==', " +
+              s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
+          }
+        case LessThanBinOp() =>
+          (leftval, rightval) match {
+            case (IntVal(v1), IntVal(v2)) => BoolVal(v1 < v2)
+            case (FloatVal(v1), FloatVal(v2)) => BoolVal(v1 < v2)
+            case (IntVal(v1), FloatVal(v2)) => BoolVal(v1 < v2)
+            case (FloatVal(v1), IntVal(v2)) => BoolVal(v1 < v2)
+            case (StringVal(v1), StringVal(v2)) => BoolVal(v1 < v2) // Lexicographic comparison
+            case _ => throw InterpreterError(s"Type mismatch at '<', " +
+              s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
+          }
+        case LessThanOrEqualBinOp() =>
+          (leftval, rightval) match {
+            case (IntVal(v1), IntVal(v2)) => BoolVal(v1 <= v2)
+            case (FloatVal(v1), FloatVal(v2)) => BoolVal(v1 <= v2)
+            case (IntVal(v1), FloatVal(v2)) => BoolVal(v1 <= v2)
+            case (FloatVal(v1), IntVal(v2)) => BoolVal(v1 <= v2)
+            case (StringVal(v1), StringVal(v2)) => BoolVal(v1 <= v2) // Lexicographic comparison
+            case _ => throw InterpreterError(s"Type mismatch at '<=', " +
+              s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
+          }
+        case MaxBinOp() =>
+          (leftval, rightval) match {
+            case (IntVal(v1), IntVal(v2)) => IntVal(v1 max v2)
+            case (FloatVal(v1), FloatVal(v2)) => FloatVal(v1 max v2)
+            case (IntVal(v1), FloatVal(v2)) => FloatVal(if (v1 >= v2) v1 else v2)
+            case (FloatVal(v1), IntVal(v2)) => FloatVal(if (v1 >= v2) v1 else v2)
+            case _ => throw InterpreterError(s"Type mismatch at 'max', " +
+              s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
+          }
+        case AndBinOp() =>
+          (leftval, rightval) match {
+            case (BoolVal(v1), BoolVal(v2)) => BoolVal(v1 && v2)
+            case _ => throw InterpreterError(s"Type mismatch at '&', " +
+              s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
+          }
+        case OrBinOp() =>
+          (leftval, rightval) match {
+            case (BoolVal(v1), BoolVal(v2)) => BoolVal(v1 || v2)
+            case _ => throw InterpreterError(s"Type mismatch at '|', " +
+              s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
+          }
       }
       // Doesn't trace the initial expression, only the result and the intermediate steps.
-      // This keeps the trace output output more concise.
-      trace(s"Evaluating ($leftval ${Unparser.unparse(op)} $rightval) to $res")
+      // This keeps the trace output more concise.
+      trace(s"Evaluating (${Unparser.unparse(e)}) to ${valueToString(res)}")
       res
     case UnOpExp(op, exp) =>
       val expval = eval(exp, venv)
-      op match {
+      val res = op match {
         case NegUnOp() =>
           expval match {
             case IntVal(v) => IntVal(-v)
             case FloatVal(v) => FloatVal(-v)
             case _ => throw InterpreterError(s"Type mismatch at '-', unexpected value ${valueToString(expval)}", op)
           }
-        case NotUnOp() => ???
+        case NotUnOp() =>
+          expval match {
+            case BoolVal(v) => BoolVal(!v)
+            case _ => throw InterpreterError(s"Type mismatch at '!', unexpected value ${valueToString(expval)}", op)
+          }
       }
-    case IfThenElseExp(condexp, thenexp, elseexp) => ???
+      trace(s"Evaluating (${Unparser.unparse(e)}) to ${valueToString(res)}")
+      res
+    case IfThenElseExp(condexp, thenexp, elseexp) =>
+      trace(s"Evaluating if-statement: ${Unparser.unparse(e)}")
+      val condval = eval(condexp, venv)
+      checkValueType(condval, Some(BoolType()), e)
+      trace(s"If: Type of condition is Bool as expected.")
+      val branchString = if condval == BoolVal(true) then "then" else "else"
+      trace(s"If: Evaluating $branchString branch")
+      if condval == BoolVal(true) then {
+        eval(thenexp, venv)
+      } else {
+        eval(elseexp, venv)
+      }
     case BlockExp(vals, exp) =>
       trace("Opening block")
       var venv1 = venv
       for (d <- vals)
         val newVal = eval(d.exp, venv1)
         trace(s"Binding $newVal to $d.x")
+        checkValueType(newVal, d.opttype, d)
         venv1 = venv1 + (d.x -> newVal)
       val result = eval(exp, venv1)
       trace("Closing block")
       trace(s"Block evaluated to $result")
       result
     case TupleExp(exps) =>
+      trace(s"Evaluating tuple: ${Unparser.unparse(e)}")
       var vals = List[Val]()
       for (exp <- exps)
         vals = eval(exp, venv) :: vals
       TupleVal(vals.reverse)
     case MatchExp(exp, cases) =>
+      trace(s"Evaluating match: ${Unparser.unparse(e)}")
       val expval = eval(exp, venv)
       expval match {
         case TupleVal(vs) =>
           for (c <- cases) {
+            trace(s"Matching against case ${Unparser.unparse(c)}")
             if (vs.length == c.pattern.length) {
-              ???
+              val newVenv = venv ++ c.pattern.zip(vs)
+              trace(s"Extended environment with: ${c.pattern.zip(vs)}")
+              trace(s"Matched. Now evaluating case expression")
+              return eval(c.exp, newVenv)
             }
           }
           throw InterpreterError(s"No case matches value ${valueToString(expval)}", e)
