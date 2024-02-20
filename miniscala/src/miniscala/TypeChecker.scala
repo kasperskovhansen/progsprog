@@ -103,20 +103,13 @@ object TypeChecker {
       val exptype = typeCheck(exp, vtenv)
       exptype match {
         case TupleType(ts) =>
-          var returnType = Option.empty[Type]
           for (c <- cases) {
             if (ts.length == c.pattern.length) {
               val newVtenv = vtenv ++ c.pattern.zip(ts)
-              val expReturnType = typeCheck(c.exp, newVtenv)
-              returnType match
-                case Some(value) if returnType != expReturnType =>
-                  throw TypeError(s"Type mismatch at match return type. " +
-                    s"All cases must have the same return type: " +
-                    s"Expected type ${unparse(returnType)}, found type ${unparse(expReturnType)}", e)
-                case None => returnType = Option(expReturnType)
+              return typeCheck(c.exp, newVtenv)
             }
           }
-          returnType.getOrElse(throw TypeError(s"Match expression must have at least one case", e))
+          throw TypeError(s"No case matches type ${unparse(exptype)}", e)
         case _ => throw TypeError(s"Tuple expected at match, found ${unparse(exptype)}", e)
       }
   }
