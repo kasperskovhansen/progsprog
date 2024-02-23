@@ -1,1 +1,1 @@
-if ((1, "s") == (1, "s")) "true" else "false"
+if ((1.0f, "s") == (1, "s")) "true" else "false"
