@@ -1,1 +1,1 @@
-if ((1.0f, "s") == (1, "s")) "true" else "false"
+{val y = 3; def hej(x: Int): Int = x + y; hej(2) + 17}
