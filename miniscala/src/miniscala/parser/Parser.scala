@@ -20,7 +20,9 @@ object Parser extends PackratParsers {
   private lazy val prog: PackratParser[Exp] = phrase { expr }
 
   private lazy val expr: PackratParser[Exp] =
-    infixexpr
+    ifthenelse |
+      mmatch |
+      infixexpr
 
   private lazy val infixexpr: PackratParser[Exp] =
     binopexp()
@@ -34,15 +36,49 @@ object Parser extends PackratParsers {
       simpleexpr1
 
   private lazy val simpleexpr1: PackratParser[Exp] =
-    parens |
+    tupleexp |
+      parens |
       literal |
       ident
+
+  private lazy val ifthenelse: PackratParser[Exp] = positioned {
+    (IFF() ~! LEFT_PAREN() ~! expr ~! RIGHT_PAREN() ~! expr ~! EELSE() ~! expr) ^^ {
+      case _ ~ _ ~ exp1 ~ _ ~ exp2 ~ _ ~ exp3 => IfThenElseExp(exp1, exp2, exp3)
+    }
+  }
+
+  private lazy val mmatch: PackratParser[Exp] = positioned {
+    (infixexpr ~ MATCH() ~! LEFT_BRACE() ~! repsep(ccase, opt(SEMICOLON())) ~! RIGHT_BRACE()) ^^ {
+      case target ~ _ ~ _ ~ cases ~ _ => MatchExp(target, cases)
+    }
+  }
+
+  private lazy val ccase: PackratParser[MatchCase] = positioned {
+    CASE() ~! tuplepattern ~! ARROW() ~! expr ^^ { case _ ~ matcher ~ _ ~ body => MatchCase(matcher, body) }
+  }
 
   private lazy val ident: PackratParser[Exp] =
     identifier ^^ { id => VarExp(id.str).setPos(id.pos) }
 
   private lazy val parens: PackratParser[Exp] =
     (LEFT_PAREN() ~ expr ~ RIGHT_PAREN()) ^^ { case _ ~ exp ~ _ => exp }
+
+  private lazy val tupleexp: PackratParser[Exp] = positioned {
+    (LEFT_PAREN() ~ RIGHT_PAREN()) ^^ {
+      case _ ~ _ => TupleExp(List())
+    } |
+      (LEFT_PAREN() ~ expr ~ COMMA() ~ rep1sep(expr, COMMA()) ~ RIGHT_PAREN()) ^^ {
+        case _ ~ exp ~ _ ~ others ~ _ => TupleExp(exp :: others)
+      }
+  }
+
+  private lazy val tuplepattern: PackratParser[List[String]] =
+    (LEFT_PAREN() ~ RIGHT_PAREN()) ^^ {
+      case _ ~ _ => List()
+    } |
+      (LEFT_PAREN() ~ identifier ~ COMMA() ~ rep1sep(identifier, COMMA()) ~ RIGHT_PAREN()) ^^ {
+        case _ ~ id ~ _ ~ ids ~ _ => (id :: ids).map(_.str)
+      }
 
   private lazy val blockel: PackratParser[AstNode] = valdecl
 
@@ -73,22 +109,49 @@ object Parser extends PackratParsers {
   }
 
   private lazy val valdecl: PackratParser[Decl] = positioned {
-    (VVAL() ~! identifier ~! EQ() ~! expr) ^^ {
-      case _ ~ id ~ _ ~ exp => ValDecl(id.str, exp) }
+    (VVAL() ~! identifier ~! opttypeannotation ~! EQ() ~! expr) ^^ {
+      case _ ~ id ~ t ~ _ ~ exp => ValDecl(id.str, t, exp) }
   }
 
-  private def binopexp(prec: Int = 3): PackratParser[Exp] =
+  private lazy val opttypeannotation: PackratParser[Option[Type]] =
+    opt { (COLON() ~! typeannotation) ^^ { case _ ~ ta => ta }  }
+
+  private def binopexp(prec: Int = 7): PackratParser[Exp] =
     if (prec == 0)
       prefixexpr
     else
       binopexp(prec - 1) * { binop(prec) ^^ { op => { (left: Exp, right: Exp) => BinOpExp(left, op, right) } } }
 
-  private lazy val literal: PackratParser[IntLit] = positioned {
-    intliteral ^^ { lit => IntLit(lit.i) }
+  private lazy val literal: PackratParser[Literal] = positioned {
+    strliteral ^^ { lit => StringLit(lit.str) } |
+      boolliteral ^^ { lit => BoolLit(lit.b) } |
+      intliteral ^^ { lit => IntLit(lit.i) } |
+      floatliteral ^^ { lit => FloatLit(lit.v) }
   }
 
   private lazy val unopexp: PackratParser[Exp] = positioned {
     (unop ~ simpleexpr) ^^ { case op ~ exp => UnOpExp(op, exp) }
+  }
+
+  private lazy val typeannotation: PackratParser[Type] = positioned {
+    (LEFT_PAREN() ~ typeannotation ~ COMMA() ~ rep1sep(typeannotation, COMMA()) ~ RIGHT_PAREN()) ^^ {
+        case _ ~ t ~ _ ~ ts ~ _ => TupleType(t :: ts)
+      } |
+      (LEFT_PAREN() ~ typeannotation ~ RIGHT_PAREN()) ^^ {
+        case _ ~ t ~ _ => t
+      } |
+      simpletypeannotation
+  }
+
+  private lazy val simpletypeannotation: PackratParser[Type] = positioned {
+    (simpletype filter {(t: Tokens.SIMPLE_TYPE) => List("Int", "String", "Boolean", "Float").contains(t.str)}) ^^ {
+      t => t.str match {
+        case "Int" => IntType()
+        case "String" => StringType()
+        case "Boolean" => BoolType()
+        case "Float" => FloatType()
+      }
+    }
   }
 
   private def binop(prec: Int): PackratParser[BinOp] = positioned {
@@ -98,15 +161,31 @@ object Parser extends PackratParsers {
       case 2 =>
         plus | minus
       case 3 =>
+        lt | lteq
+      case 4 =>
+        equalequal
+      case 5 =>
+        and
+      case 6 =>
+        or
+      case 7 =>
         max
     }
   }
 
   private lazy val unop: PackratParser[UnOp] = positioned {
-    neg
+    neg | not
   }
 
+  private lazy val simpletype: PackratParser[SIMPLE_TYPE] = accept("simple type", { case t: SIMPLE_TYPE => t })
+
+  private lazy val strliteral: PackratParser[STRING] = accept("string literal", { case lit: STRING => lit })
+
   private lazy val intliteral: PackratParser[INT] = accept("int literal", { case lit: INT => lit })
+
+  private lazy val boolliteral: PackratParser[BOOL] = accept("boolean literal", { case lit: BOOL => lit })
+
+  private lazy val floatliteral: PackratParser[FLOAT] = accept("float literal", { case lit: FLOAT => lit })
 
   private lazy val identifier: PackratParser[IDENTIFIER] = accept("identifier", { case id: IDENTIFIER => id })
 
@@ -118,11 +197,23 @@ object Parser extends PackratParsers {
 
   private lazy val div: PackratParser[BinOp] = OP("/") ^^ { _ => DivBinOp() }
 
+  private lazy val equalequal: PackratParser[BinOp] = OP("==") ^^ { _ => EqualBinOp() }
+
+  private lazy val and: PackratParser[BinOp] = OP("&") ^^ { _ => AndBinOp() }
+
+  private lazy val or: PackratParser[BinOp] = OP("|") ^^ { _ => OrBinOp() }
+
   private lazy val max: PackratParser[BinOp] = OP("max") ^^ { _ => MaxBinOp() }
+
+  private lazy val lt: PackratParser[BinOp] = OP("<") ^^ { _ => LessThanBinOp() }
 
   private lazy val modulo: PackratParser[BinOp] = OP("%") ^^ { _ => ModuloBinOp() }
 
+  private lazy val lteq: PackratParser[BinOp] = OP("<=") ^^ { _ => LessThanOrEqualBinOp() }
+
   private lazy val neg: PackratParser[UnOp] = OP("-") ^^ { _ => NegUnOp() }
+
+  private lazy val not: PackratParser[UnOp] = OP("!") ^^ { _ => NotUnOp() }
 
   private def parseTokens(tokens: Seq[MiniScalaToken]): Exp =
     prog(MiniScalaTokenReader(tokens)) match {

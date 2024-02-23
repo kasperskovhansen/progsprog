@@ -37,12 +37,12 @@ object Week2 {
             Ast.BlockExp(
               vals = List(
                 Ast.ValDecl(
-                  "x", Ast.BinOpExp(
+                  "x", Option(Ast.IntType()), Ast.BinOpExp(
                     Ast.IntLit(8), Ast.MinusBinOp(), Ast.IntLit(2)
                   )
                 ),
                 Ast.ValDecl(
-                  "y", Ast.IntLit(13)
+                  "y", Option(Ast.IntType()), Ast.IntLit(13)
                 )
               ), exp = Ast.BinOpExp(
                 Ast.VarExp("x"), Ast.PlusBinOp(), Ast.IntLit(10)
@@ -102,12 +102,12 @@ object Week2 {
             Ast.BlockExp(
               vals = List(
                 Ast.ValDecl(
-                  "x", Ast.BinOpExp(
+                  "x", Option(Ast.IntType()), Ast.BinOpExp(
                     Ast.IntLit(8), Ast.MinusBinOp(), Ast.IntLit(2)
                   )
                 ),
                 Ast.ValDecl(
-                  "y", Ast.IntLit(13)
+                  "y", Option(Ast.IntType()), Ast.IntLit(13)
                 )
               ), exp = Ast.BinOpExp(
                 Ast.VarExp("x"), Ast.PlusBinOp(), Ast.IntLit(10)
@@ -141,13 +141,17 @@ object Week2 {
     Simplifier.test("5/1", "5")
     Simplifier.test("0/5", "0")
     Simplifier.test("0%5", "0")
-    Simplifier.test("5%1", "5")
+    Simplifier.test("5%1", "0")
     Simplifier.test("5%3", "(5%3)")
-    Simplifier.test("5max4", "(5max4)")
-    Simplifier.test("4max5", "(4max5)")
+    Simplifier.test("5max4", "(5 max 4)")
+    Simplifier.test("5 max 4", "(5 max 4)")
+    Simplifier.test("4max5", "(4 max 5)")
     Simplifier.test("5max5", "5")
     Simplifier.test("-5", "(-5)")
-    Simplifier.test("-0", "0")
+    Simplifier.test("-5", "(-5)")
+    Simplifier.test("-(-(-(1 + 0)))", "(-1)")
+    Simplifier.test("(1+0)*(0+1)", "1")
+    Simplifier.test("{val x = 1*0; val y = -(-(1)); 1 * x + y}", "{val x = 0;val y = 1;(x+y)}")
 
 
     println("VarEnv:")
@@ -156,8 +160,8 @@ object Week2 {
     env = env.extend("x", 5)
     env = env.extend("y", 7)
     println(env.lookup("x")) // 5
-//    var env2 = makeEmpty()
-//    println(env2.lookup("x")) // 5
+    //    var env2 = makeEmpty()
+    //    println(env2.lookup("x")) // 5
 
   }
 
@@ -196,6 +200,7 @@ object Week2 {
 
   sealed abstract class VarEnv {
     def extend(x: Var, v: Int): VarEnv = ConsVarEnv(x, v, this)
+
     def lookup(x: Var): Int
   }
 

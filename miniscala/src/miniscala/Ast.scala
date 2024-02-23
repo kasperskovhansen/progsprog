@@ -23,7 +23,7 @@ object Ast {
   sealed abstract class DeclOrExp extends AstNode
 
   /**
-   * Expressions.
+   * Expressions (excluding literals).
    */
   sealed abstract class Exp extends DeclOrExp {
 //    def eval(): Int
@@ -41,12 +41,29 @@ object Ast {
 //    override def eval(): Int = op.eval(exp.eval())
 //  }
 
-  case class IntLit(c: Int) extends Exp
+  case class IfThenElseExp(condexp: Exp, thenexp: Exp, elseexp: Exp) extends Exp
 //  {
 //    override def eval(): Int = c
 //  }
 
   case class BlockExp(vals: List[ValDecl], exp: Exp) extends Exp
+
+  case class TupleExp(exps: List[Exp]) extends Exp
+
+  case class MatchExp(exp: Exp, cases: List[MatchCase]) extends Exp
+
+  /**
+    * Literals.
+    */
+  sealed abstract class Literal extends Exp
+
+  case class IntLit(c: Int) extends Literal
+
+  case class BoolLit(c: Boolean) extends Literal
+
+  case class FloatLit(c: Float) extends Literal
+
+  case class StringLit(c: String) extends Literal
 
   /**
    * Binary operators.
@@ -79,6 +96,12 @@ object Ast {
 //    }
 //  }
 
+  case class EqualBinOp() extends BinOp
+
+  case class LessThanBinOp() extends BinOp
+
+  case class LessThanOrEqualBinOp() extends BinOp
+
   case class ModuloBinOp() extends BinOp
 //  {
 //    override def eval(leftval: Int, rightval: Int): Int = leftval % rightval
@@ -89,12 +112,38 @@ object Ast {
 //    override def eval(leftval: Int, rightval: Int): Int = Math.max(leftval, rightval)
 //  }
 
+  case class AndBinOp() extends BinOp
+
+  case class OrBinOp() extends BinOp
+
   /**
     * Declarations.
     */
   sealed abstract class Decl extends DeclOrExp
 
-  case class ValDecl(x: Var, exp: Exp) extends Decl
+  case class ValDecl(x: Var, opttype: Option[Type], exp: Exp) extends Decl
+
+  /**
+    * Match cases.
+    */
+  case class MatchCase(pattern: List[Var], exp: Exp) extends AstNode
+
+  /**
+    * Types.
+    */
+  abstract class Type extends AstNode
+
+  case class IntType() extends Type
+
+  case class BoolType() extends Type
+
+  case class FloatType() extends Type
+
+  case class StringType() extends Type
+
+  case class TupleType(types: List[Type]) extends Type // Unit is represented as TupleType(Nil)
+
+  case class NotUnOp() extends UnOp
 
   /**
    * Unary operators.

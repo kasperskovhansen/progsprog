@@ -20,6 +20,12 @@ object Main {
       if (Options.unparse)
         println(Unparser.unparse(program))
 
+      // type check the program, if enabled
+      if (Options.types) {
+        val initialVarTypeEnv = TypeChecker.makeInitialVarTypeEnv(program)
+        TypeChecker.typeCheck(program, initialVarTypeEnv)
+      }
+
       // execute the program, if enabled
       if (Options.run) {
         // Functional approach:
@@ -27,7 +33,7 @@ object Main {
         val result = Interpreter.eval(program, initialVarEnv)
         // Object-oriented style:
         // val result = program.eval()
-        println(s"Output: $result")
+        println(s"Output: ${Interpreter.valueToString(result)}")
       }
 
     } catch { // report all errors to the console
