@@ -1,1 +1,1 @@
-{val y = 3; def hej(x: Int): Int = x + y; hej(2) + 17}
+{val y = 3; val z: Int = 7; def hej(x: Int): Int = x + y; def med(a) = a + z; hej(2) + 17}

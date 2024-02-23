@@ -61,13 +61,8 @@ object Unparser {
         }
       case decl: Decl =>
         decl match
-          case ValDecl(x, t, exp) => t match {
-            case Some(t) => s"val $x: ${unparse(t)} = ${unparse(exp)}"
-            case None => s"val $x = ${unparse(exp)}"
-          }
-          case DefDecl(fun, params, optrestype, body) => optrestype match
-            case Some(t) => s"def $fun(${params.map(param => unparse(param)).mkString(", ")}): ${unparse(t)} = ${unparse(body)}"
-            case None => s"def $fun(${params.map(param => unparse(param)).mkString(", ")}) = ${unparse(body)}"
+          case ValDecl(x, t, exp) => s"val $x${unparse(t)} = ${unparse(exp)}"
+          case DefDecl(fun, params, t, body) => s"def $fun(${params.map(param => unparse(param)).mkString(", ")})${unparse(t)} = ${unparse(body)}"
       case t: Type => t match {
         case IntType() => "Int"
         case BoolType() => "Bool"
@@ -80,10 +75,7 @@ object Unparser {
       case MatchCase(pattern, exp) =>
         val patternString = pattern.mkString(", ")
         s"case ($patternString) => ${unparse(exp)}"
-      case FunParam(x, opttype) =>
-        opttype match
-          case Some(t) => s"$x: ${unparse(t)}"
-          case None => x
+      case FunParam(x, t) => s"$x${unparse(t)}"
     }
   } // this unparse function can be used for all kinds of AstNode objects, including Exp objects (see Ast.scala)
 
