@@ -22,7 +22,7 @@ object Unparser {
             val result = exps.map(exp => unparse(exp))
             "(" + result.mkString(", ") + ")"
           case VarExp(v) => v
-          case BlockExp(vals, exp) =>
+          case BlockExp(vals, funs, exp) =>
             val declarationsString =
               vals.foldLeft("") {
                 case (acc, valDecl) => acc + unparse(valDecl) + ";"

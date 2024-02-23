@@ -22,9 +22,16 @@ object Interpreter {
 
   case class TupleVal(vs: List[Val]) extends Val
 
+  case class Closure(params: List[FunParam], optrestype: Option[Type], body: Exp, venv: VarEnv, fenv: FunEnv)
+
   type VarEnv = Map[Var, Val]
 
-  def eval(e: Exp, venv: VarEnv): Val = e match {
+  type FunEnv = Map[Fun, Closure]
+
+  /**
+    * Evaluates an expression.
+    */
+  def eval(e: Exp, venv: VarEnv, fenv: FunEnv): Val = e match {
     case IntLit(c) => IntVal(c)
     case BoolLit(c) => BoolVal(c)
     case FloatLit(c) => FloatVal(c)
@@ -32,8 +39,8 @@ object Interpreter {
     case VarExp(x) =>
       venv.getOrElse(x, throw InterpreterError(s"Unknown identifier '$x'", e))
     case BinOpExp(leftexp, op, rightexp) =>
-      val leftval = eval(leftexp, venv)
-      val rightval = eval(rightexp, venv)
+      val leftval = eval(leftexp, venv, fenv)
+      val rightval = eval(rightexp, venv, fenv)
       val res = op match {
         case PlusBinOp() =>
           (leftval, rightval) match {
@@ -147,7 +154,7 @@ object Interpreter {
       trace(s"Evaluating (${Unparser.unparse(e)}) to ${valueToString(res)}")
       res
     case UnOpExp(op, exp) =>
-      val expval = eval(exp, venv)
+      val expval = eval(exp, venv, fenv)
       val res = op match {
         case NegUnOp() =>
           expval match {
@@ -165,25 +172,25 @@ object Interpreter {
       res
     case IfThenElseExp(condexp, thenexp, elseexp) =>
       trace(s"Evaluating if-statement: ${Unparser.unparse(e)}")
-      val condval = eval(condexp, venv)
+      val condval = eval(condexp, venv, fenv)
       checkValueType(condval, Some(BoolType()), e)
       trace(s"If: Type of condition is Bool as expected.")
       val branchString = if condval == BoolVal(true) then "then" else "else"
       trace(s"If: Evaluating $branchString branch")
       if condval == BoolVal(true) then {
-        eval(thenexp, venv)
+        eval(thenexp, venv, fenv)
       } else {
-        eval(elseexp, venv)
+        eval(elseexp, venv, fenv)
       }
-    case BlockExp(vals, exp) =>
+    case b @ BlockExp(vals, defs, exp) =>
       trace("Opening block")
       var venv1 = venv
+      var fenv1 = fenv
       for (d <- vals)
-        val newVal = eval(d.exp, venv1)
-        trace(s"Binding $newVal to $d.x")
-        checkValueType(newVal, d.opttype, d)
-        venv1 = venv1 + (d.x -> newVal)
-      val result = eval(exp, venv1)
+        val (venv2, fenv2) = eval(d, venv1, fenv1, b)
+        venv1 = venv2
+        fenv1 = fenv2
+      val result = eval(exp, venv1, fenv1)
       trace("Closing block")
       trace(s"Block evaluated to $result")
       result
@@ -191,11 +198,11 @@ object Interpreter {
       trace(s"Evaluating tuple: ${Unparser.unparse(e)}")
       var vals = List[Val]()
       for (exp <- exps)
-        vals = eval(exp, venv) :: vals
+        vals = eval(exp, venv, fenv) :: vals
       TupleVal(vals.reverse)
     case MatchExp(exp, cases) =>
       trace(s"Evaluating match: ${Unparser.unparse(e)}")
-      val expval = eval(exp, venv)
+      val expval = eval(exp, venv, fenv)
       expval match {
         case TupleVal(vs) =>
           for (c <- cases) {
@@ -204,12 +211,25 @@ object Interpreter {
               val newVenv = venv ++ c.pattern.zip(vs)
               trace(s"Extended environment with: ${c.pattern.zip(vs)}")
               trace(s"Matched. Now evaluating case expression")
-              return eval(c.exp, newVenv)
+              return eval(c.exp, newVenv, fenv)
             }
           }
           throw InterpreterError(s"No case matches value ${valueToString(expval)}", e)
         case _ => throw InterpreterError(s"Tuple expected at match, found ${valueToString(expval)}", e)
       }
+    case CallExp(fun, args) =>
+      ???
+  }
+
+  /**
+    * Evaluates a declaration.
+    */
+  def eval(d: Decl, venv: VarEnv, fenv: FunEnv, b: BlockExp): (VarEnv, FunEnv) = d match {
+    case ValDecl(x, opttype, exp) =>
+      val venv1 = venv + (x -> eval(exp, venv, fenv))
+      (venv1, fenv)
+    case DefDecl(fun, params, optrestype, body) =>
+      ???
   }
 
   /**

@@ -29,29 +29,29 @@ object Week2 {
 
     // Count IntLits function
     println("CountIntLits")
-    println(
-      countIntLits(
-        Ast.BinOpExp(
-          Ast.IntLit(5), Ast.PlusBinOp(),
-          Ast.BinOpExp(
-            Ast.BlockExp(
-              vals = List(
-                Ast.ValDecl(
-                  "x", Option(Ast.IntType()), Ast.BinOpExp(
-                    Ast.IntLit(8), Ast.MinusBinOp(), Ast.IntLit(2)
-                  )
-                ),
-                Ast.ValDecl(
-                  "y", Option(Ast.IntType()), Ast.IntLit(13)
-                )
-              ), exp = Ast.BinOpExp(
-                Ast.VarExp("x"), Ast.PlusBinOp(), Ast.IntLit(10)
-              )
-            ), Ast.MultBinOp(), Ast.IntLit(3)
-          )
-        )
-      )
-    )
+//    println(
+//      countIntLits(
+//        Ast.BinOpExp(
+//          Ast.IntLit(5), Ast.PlusBinOp(),
+//          Ast.BinOpExp(
+//            Ast.BlockExp(
+//              vals = List(
+//                Ast.ValDecl(
+//                  "x", Option(Ast.IntType()), Ast.BinOpExp(
+//                    Ast.IntLit(8), Ast.MinusBinOp(), Ast.IntLit(2)
+//                  )
+//                ),
+//                Ast.ValDecl(
+//                  "y", Option(Ast.IntType()), Ast.IntLit(13)
+//                )
+//              ), exp = Ast.BinOpExp(
+//                Ast.VarExp("x"), Ast.PlusBinOp(), Ast.IntLit(10)
+//              )
+//            ), Ast.MultBinOp(), Ast.IntLit(3)
+//          )
+//        )
+//      )
+//    )
 
     val venv: VarEnv = ConsVarEnv("x", 5, ConsVarEnv("y", 7, NilVarEnv))
     val mapEnv: Map[Var, Int] = varEnvToMap(venv)
@@ -94,29 +94,29 @@ object Week2 {
     println(decode(decrement(encode(0))))
 
     // HANDIN
-    println(
-      unparse(
-        Ast.BinOpExp(
-          Ast.IntLit(5), Ast.PlusBinOp(),
-          Ast.BinOpExp(
-            Ast.BlockExp(
-              vals = List(
-                Ast.ValDecl(
-                  "x", Option(Ast.IntType()), Ast.BinOpExp(
-                    Ast.IntLit(8), Ast.MinusBinOp(), Ast.IntLit(2)
-                  )
-                ),
-                Ast.ValDecl(
-                  "y", Option(Ast.IntType()), Ast.IntLit(13)
-                )
-              ), exp = Ast.BinOpExp(
-                Ast.VarExp("x"), Ast.PlusBinOp(), Ast.IntLit(10)
-              )
-            ), Ast.MultBinOp(), Ast.IntLit(3)
-          )
-        )
-      )
-    )
+//    println(
+//      unparse(
+//        Ast.BinOpExp(
+//          Ast.IntLit(5), Ast.PlusBinOp(),
+//          Ast.BinOpExp(
+//            Ast.BlockExp(
+//              vals = List(
+//                Ast.ValDecl(
+//                  "x", Option(Ast.IntType()), Ast.BinOpExp(
+//                    Ast.IntLit(8), Ast.MinusBinOp(), Ast.IntLit(2)
+//                  )
+//                ),
+//                Ast.ValDecl(
+//                  "y", Option(Ast.IntType()), Ast.IntLit(13)
+//                )
+//              ), exp = Ast.BinOpExp(
+//                Ast.VarExp("x"), Ast.PlusBinOp(), Ast.IntLit(10)
+//              )
+//            ), Ast.MultBinOp(), Ast.IntLit(3)
+//          )
+//        )
+//      )
+//    )
 
     println(simplify(Parser.parse("5-5")))
     println(simplify(Parser.parse("5-3")))
@@ -194,7 +194,7 @@ object Week2 {
       case Ast.BinOpExp(leftexp, op, rightexp) => countIntLits(leftexp) + countIntLits(rightexp)
       case Ast.UnOpExp(op, exp) => countIntLits(exp)
       case Ast.IntLit(c) => 1
-      case Ast.BlockExp(vals, exp) => vals.map(v => countIntLits(v.exp)).sum + countIntLits(exp)
+//      case Ast.BlockExp(vals, exp) => vals.map(v => countIntLits(v.exp)).sum + countIntLits(exp)
 
   type Var = String
 

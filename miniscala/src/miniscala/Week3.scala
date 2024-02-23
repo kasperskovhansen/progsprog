@@ -17,10 +17,10 @@ object Week3 {
     println(Unparser.unparse(StringType()))
     println(Unparser.unparse(TupleType(List(IntType(), IntType()))))
     println(Unparser.unparse(TupleType(List(TupleType(List(FloatType(), StringType())), IntType()))))
-    println(Unparser.unparse(BlockExp(
-      List(ValDecl("x", Option(IntType()), IntLit(10)),
-        ValDecl("y", Option(IntType()), IntLit(20))),
-      BinOpExp(IntLit(10), MinusBinOp(), IntLit(20)))))
+//    println(Unparser.unparse(BlockExp(
+//      List(ValDecl("x", Option(IntType()), IntLit(10)),
+//        ValDecl("y", Option(IntType()), IntLit(20))),
+//      BinOpExp(IntLit(10), MinusBinOp(), IntLit(20)))))
     println(Unparser.unparse(Parser.parse("{val x: Int = 10; val y: Int = 20; x - y}")))
 
     println(Unparser.unparse(IntLit(5)))
