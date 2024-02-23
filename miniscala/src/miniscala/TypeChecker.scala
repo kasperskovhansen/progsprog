@@ -49,6 +49,7 @@ object TypeChecker {
             case (FloatType(), IntType()) => BoolType()
             case (StringType(), StringType()) => BoolType()
             case (BoolType(), BoolType()) => BoolType()
+            case (TupleType(_), TupleType(_)) => BoolType()
             case _ => throw TypeError(s"Type mismatch at '==', unexpected types ${unparse(lefttype)} and ${unparse(righttype)}", op)
           }
         case LessThanBinOp() | LessThanOrEqualBinOp() =>

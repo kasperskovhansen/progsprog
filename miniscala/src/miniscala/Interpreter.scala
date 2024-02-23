@@ -97,8 +97,16 @@ object Interpreter {
             case (FloatVal(v1), IntVal(v2)) => BoolVal(v1 == v2)
             case (BoolVal(v1), BoolVal(v2)) => BoolVal(v1 == v2)
             case (StringVal(v1), StringVal(v2)) => BoolVal(v1 == v2)
-            case _ => throw InterpreterError(s"Type mismatch at '==', " +
-              s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
+            case (TupleVal(t1), TupleVal(t2)) =>
+              if (t1.length == t2.length) {
+                for ((v1, v2) <- t1.zip(t2)) {
+                  if (v1 != v2) return BoolVal(false)
+                }
+                BoolVal(true)
+              } else {
+                BoolVal(false)
+              }
+            case _ => BoolVal(false)
           }
         case LessThanBinOp() =>
           (leftval, rightval) match {

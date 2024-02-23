@@ -67,7 +67,6 @@ object Unparser {
       case MatchCase(pattern, exp) =>
         val patternString = pattern.mkString(", ")
         s"case ($patternString) => ${unparse(exp)}"
-      case _ => throw MiniScalaError(s"Unexpected AstNode $n")
     }
   } // this unparse function can be used for all kinds of AstNode objects, including Exp objects (see Ast.scala)
 

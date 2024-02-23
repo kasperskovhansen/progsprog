@@ -1,1 +1,1 @@
-(5+({val x=(8-y);val y=13;(x+10)}*3))
+if ((1, "s") == (1, "s")) "true" else "false"
