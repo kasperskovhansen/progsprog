@@ -1,1 +1,6 @@
-{val y = 3; val z: Int = 7; def hej(x: Int): Int = x + y; def med(a) = a + z; hej(2) + 17}
+{
+    val y = 2.0f;
+    def a(x: Float): String = "woah";
+    def b(x: Float): Boolean = if (x == 3.0f) true else false;
+    if (y == 2) a(y) else b(y)
+}

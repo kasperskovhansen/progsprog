@@ -22,15 +22,15 @@ object Interpreter {
 
   case class TupleVal(vs: List[Val]) extends Val
 
-  case class Closure(params: List[FunParam], optrestype: Option[Type], body: Exp, venv: VarEnv, fenv: FunEnv)
+  case class Closure(params: List[FunParam], optrestype: Option[Type], body: Exp, venv: VarEnv, fenv: FunEnv, defs: List[DefDecl])
 
   type VarEnv = Map[Var, Val]
 
   type FunEnv = Map[Fun, Closure]
 
   /**
-    * Evaluates an expression.
-    */
+   * Evaluates an expression.
+   */
   def eval(e: Exp, venv: VarEnv, fenv: FunEnv): Val = e match {
     case IntLit(c) => IntVal(c)
     case BoolLit(c) => BoolVal(c)
@@ -182,7 +182,7 @@ object Interpreter {
       } else {
         eval(elseexp, venv, fenv)
       }
-    case b @ BlockExp(vals, defs, exp) =>
+    case b@BlockExp(vals, defs, exp) =>
       trace("Opening block")
       var venv1 = venv
       var fenv1 = fenv
@@ -190,9 +190,13 @@ object Interpreter {
         val (venv2, fenv2) = eval(d, venv1, fenv1, b)
         venv1 = venv2
         fenv1 = fenv2
+      for (d <- defs)
+        val (venv2, fenv2) = eval(d, venv1, fenv1, b)
+        venv1 = venv2
+        fenv1 = fenv2
       val result = eval(exp, venv1, fenv1)
       trace("Closing block")
-      trace(s"Block evaluated to $result")
+      trace(s"Block evaluated to ${valueToString(result)}")
       result
     case TupleExp(exps) =>
       trace(s"Evaluating tuple: ${Unparser.unparse(e)}")
@@ -218,18 +222,36 @@ object Interpreter {
         case _ => throw InterpreterError(s"Tuple expected at match, found ${valueToString(expval)}", e)
       }
     case CallExp(fun, args) =>
-      ???
+      val closure = fenv.getOrElse(fun, throw InterpreterError(s"Unknown function '$fun'", e))
+      val argsValues = args.map(arg => eval(arg, venv, fenv))
+      if (argsValues.length != closure.params.length) {
+        throw InterpreterError(s"Argument length mismatch. Requiring ${argsValues.length} parameters " +
+          s"but only found ${closure.params.length} in closure.", e)
+      }
+      val paramValPairs = closure.params.zip(argsValues)
+
+      var closureVenv1: VarEnv = closure.venv
+      for ((funParam, value) <- paramValPairs) {
+        closureVenv1 = closureVenv1 + (funParam.x -> value)
+      }
+      var closureFenv1 = closure.fenv + (fun -> closure)
+      for (fDef <- closure.defs) {
+        closureFenv1 = closureFenv1 +
+          (fDef.fun -> Closure(fDef.params, fDef.optrestype, fDef.body, closureVenv1, closureFenv1, closure.defs))
+      }
+      eval(closure.body, closureVenv1, closureFenv1)
   }
 
   /**
-    * Evaluates a declaration.
-    */
+   * Evaluates a declaration.
+   */
   def eval(d: Decl, venv: VarEnv, fenv: FunEnv, b: BlockExp): (VarEnv, FunEnv) = d match {
     case ValDecl(x, opttype, exp) =>
       val venv1 = venv + (x -> eval(exp, venv, fenv))
       (venv1, fenv)
     case DefDecl(fun, params, optrestype, body) =>
-      ???
+      val fenv1 = fenv + (fun -> Closure(params, optrestype, body, venv, fenv, b.defs))
+      (venv, fenv1)
   }
 
   /**

@@ -100,6 +100,17 @@ object TypeChecker {
         checkTypesEqual(t, d.opttype, d)
         tenv = (tenv._1 + (d.x -> d.opttype.getOrElse(t)), tenv._2)
       }
+      for (d <- defs) {
+        val funType = getFunType(d)
+        tenv = (tenv._1, tenv._2 + (d.fun -> funType))
+        for (p <- d.params) {
+          tenv = (tenv._1 + (p.x -> p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p))), tenv._2)
+        }
+      }
+      for (d <- defs) {
+        val funType = getFunType(d)
+        checkTypesEqual(funType._2, Some(typeCheck(d.body, tenv._1, tenv._2)), d)
+      }
       typeCheck(exp, tenv._1, tenv._2)
     case TupleExp(exps) => TupleType(exps.map(e => typeCheck(e, vtenv, ftenv)))
     case MatchExp(exp, cases) =>
@@ -116,7 +127,15 @@ object TypeChecker {
         case _ => throw TypeError(s"Tuple expected at match, found ${unparse(exptype)}", e)
       }
     case CallExp(fun, args) =>
-      ???
+      val ftenv1 = ftenv.getOrElse(fun, throw TypeError(s"Unknown identifier $fun", e))
+      if (ftenv1._1.length != args.length)
+        throw TypeError(s"Wrong number of arguments for function $fun", e)
+      val argTypePairs = ftenv1._1.zip(args)
+      for ((t, a) <- argTypePairs) {
+        val argType = typeCheck(a, vtenv, ftenv)
+        checkTypesEqual(t, Some(argType), e)
+      }
+      ftenv1._2
   }
 
   /**

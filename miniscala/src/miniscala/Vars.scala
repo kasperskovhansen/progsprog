@@ -33,7 +33,10 @@ object Vars {
         fv = fv ++ (freeVars(c.exp) -- c.pattern)
       fv
     case CallExp(_, args) =>
-      ???
+      var fv = Set[Var]()
+      for (exp <- args)
+        fv = fv ++ freeVars(exp)
+      fv
   }
 
   def freeVars(decl: Decl): Set[Var] = decl match {
