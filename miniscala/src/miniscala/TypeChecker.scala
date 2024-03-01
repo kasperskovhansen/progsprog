@@ -103,13 +103,14 @@ object TypeChecker {
       for (d <- defs) {
         val funType = getFunType(d)
         tenv = (tenv._1, tenv._2 + (d.fun -> funType))
-        for (p <- d.params) {
-          tenv = (tenv._1 + (p.x -> p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p))), tenv._2)
-        }
       }
       for (d <- defs) {
+        var tenv1 = tenv
+        for (p <- d.params) {
+          tenv1 = (tenv1._1 + (p.x -> p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p))), tenv1._2)
+        }
         val funType = getFunType(d)
-        checkTypesEqual(funType._2, Some(typeCheck(d.body, tenv._1, tenv._2)), d)
+        checkTypesEqual(funType._2, Some(typeCheck(d.body, tenv1._1, tenv1._2)), d)
       }
       typeCheck(exp, tenv._1, tenv._2)
     case TupleExp(exps) => TupleType(exps.map(e => typeCheck(e, vtenv, ftenv)))

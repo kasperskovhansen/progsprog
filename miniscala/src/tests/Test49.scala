@@ -20,8 +20,7 @@ object Test49 {
     testFail("{def f(x: Int): Int = x + z; f(2)}")
     test("{def f(x: Int, y: Int): Int = x + y; f(2, 3)}", IntVal(5), IntType())
     test("{def f(x: Int, y: Float): Float = x + y; f(2, 3.0f)}", FloatVal(5.0f), FloatType())
-    testTypeFail("{def f(x: Int, y: Float): String = x + y; f(2, 3.0f)}")
-    testVal("{def f(x: Int, y: Float): String = x + y; f(2, 3.0f)}", FloatVal(5.0))
+    testFail("{def f(x: Int, y: Float): String = x + y; f(2, 3.0f)}")
 
     test("{ def f(x: Int): Int = x + 1; { def g(x: Int): Int = x + 2; f(2) + g(3) } }", IntVal(8), IntType())
     testFail("{ def f(x: Int): Int = g(x); { def g(x: Int): Int = x + 2; f(2) } }")

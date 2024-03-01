@@ -186,11 +186,7 @@ object Interpreter {
       trace("Opening block")
       var venv1 = venv
       var fenv1 = fenv
-      for (d <- vals)
-        val (venv2, fenv2) = eval(d, venv1, fenv1, b)
-        venv1 = venv2
-        fenv1 = fenv2
-      for (d <- defs)
+      for (d <- vals ++ defs)
         val (venv2, fenv2) = eval(d, venv1, fenv1, b)
         venv1 = venv2
         fenv1 = fenv2
@@ -232,14 +228,17 @@ object Interpreter {
 
       var closureVenv1: VarEnv = closure.venv
       for ((funParam, value) <- paramValPairs) {
+        checkValueType(value, funParam.opttype, e)
         closureVenv1 = closureVenv1 + (funParam.x -> value)
       }
-      var closureFenv1 = closure.fenv + (fun -> closure)
+      var closureFenv1: FunEnv = closure.fenv
       for (fDef <- closure.defs) {
         closureFenv1 = closureFenv1 +
-          (fDef.fun -> Closure(fDef.params, fDef.optrestype, fDef.body, closureVenv1, closureFenv1, closure.defs))
+          (fDef.fun -> Closure(fDef.params, fDef.optrestype, fDef.body, closure.venv, closure.fenv, closure.defs))
       }
-      eval(closure.body, closureVenv1, closureFenv1)
+      val result = eval(closure.body, closureVenv1, closureFenv1)
+      checkValueType(result, closure.optrestype, e)
+      result
   }
 
   /**
