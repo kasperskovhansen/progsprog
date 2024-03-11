@@ -11,9 +11,6 @@ object Test49 {
     test("{def f(x: Int): Int = x; f(2)}", IntVal(2), IntType())
     testFail("{def f(x: Int): Int = x; f(2, 3)}")
 
-
-    // <-- add more test cases here
-
     // Functions and scope
     test("{val x: Int = 5; def f(x: Int): Int = x; f(2)}", IntVal(2), IntType())
     test("{val y: Int = 5; def f(x: Int): Int = x + y; f(2)}", IntVal(7), IntType())
@@ -42,6 +39,9 @@ object Test49 {
     // Match case
     test("{ def f(x: Int): Int = x; def g(x: Int): Int = x; (f(5), g(2)) match { case (c, d) => c + d } }", IntVal(7), IntType())
     test("{ def f(x: Int): Int = x; def g(x: Int): Int = x; (f(5), g(2)) match { case (c, d) => c + d } }", IntVal(7), IntType())
+
+    // Free variable x in g
+    testValFail("{ def f(x: Int): Int = x; def g(y: Int): Int = x; g(1) }")
 
     println("All tests passed successfully!")
   }

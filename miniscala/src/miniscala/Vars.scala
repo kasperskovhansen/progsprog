@@ -33,7 +33,11 @@ object Vars {
         fv = fv ++ (freeVars(c.exp) -- c.pattern)
       fv
     case CallExp(funexp, args) =>
-      ??? // note: the first field, funexp, is now an expression!
+      // note: the first field, funexp, is now an expression!
+      var fv = freeVars(funexp)
+      for (arg <- args)
+        fv = fv ++ freeVars(arg)
+      fv
     case LambdaExp(params, body) => freeVars(body) -- params.map(p => p.x)
   }
 
