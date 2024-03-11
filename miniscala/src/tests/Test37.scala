@@ -1,6 +1,6 @@
 package tests
 
-import miniscala.Ast.Var
+import miniscala.Ast._
 import miniscala.Interpreter.*
 import miniscala.parser.Parser.parse
 
@@ -79,7 +79,7 @@ object Test37 {
     println("All tests passed successfully!")
   }
 
-  def test(prg: String, out: Val, env: VarEnv = Map[Var, Val]()): Unit = {
+  def test(prg: String, out: Val, env: Env = Map[Id, Val]()): Unit = {
 //    assert(eval(parse(prg), env) == out)
   }
 

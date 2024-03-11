@@ -40,6 +40,9 @@ object Unparser {
           case CallExp(fun, args) =>
             val result = args.map(arg => unparse(arg))
             s"$fun(${result.mkString(", ")})"
+          case LambdaExp(params, e) =>
+            val paramStrings = params.map(p => s"${p.x}${unparse(p.opttype)}")
+            s"(${paramStrings.mkString(", ")}) => ${unparse(e)}"
         }
       case op: BinOp =>
         op match
@@ -71,6 +74,8 @@ object Unparser {
         case TupleType(types: List[Type]) =>
           val result = types.map(t => unparse(t))
           "(" + result.mkString(", ") + ")"
+        case FunType(argTypes: List[Type], restype: Type) =>
+          s"${unparse(TupleType(argTypes))} => ${unparse(restype)}"
       }
       case MatchCase(pattern, exp) =>
         val patternString = pattern.mkString(", ")

@@ -8,19 +8,17 @@ import miniscala.Unparser.unparse
  */
 object TypeChecker {
 
-  type VarTypeEnv = Map[Var, Type]
+  type TypeEnv = Map[Id, Type]
 
-  type FunTypeEnv = Map[Fun, (List[Type], Type)]
-
-  def typeCheck(e: Exp, vtenv: VarTypeEnv, ftenv: FunTypeEnv): Type = e match {
+  def typeCheck(e: Exp, tenv: TypeEnv): Type = e match {
     case IntLit(_) => IntType()
     case BoolLit(_) => BoolType()
     case FloatLit(_) => FloatType()
     case StringLit(_) => StringType()
-    case VarExp(x) => vtenv.getOrElse(x, throw TypeError(s"Unknown identifier $x", e))
+    case VarExp(x) => tenv.getOrElse(x, throw TypeError(s"Unknown identifier $x", e))
     case BinOpExp(leftexp, op, rightexp) =>
-      val lefttype = typeCheck(leftexp, vtenv, ftenv)
-      val righttype = typeCheck(rightexp, vtenv, ftenv)
+      val lefttype = typeCheck(leftexp, tenv)
+      val righttype = typeCheck(rightexp, tenv)
       op match {
         case PlusBinOp() =>
           (lefttype, righttype) match {
@@ -70,7 +68,7 @@ object TypeChecker {
           }
       }
     case UnOpExp(op, exp) =>
-      val exptype = typeCheck(exp, vtenv, ftenv)
+      val exptype = typeCheck(exp, tenv)
       op match {
         case NegUnOp() =>
           exptype match {
@@ -85,65 +83,74 @@ object TypeChecker {
           }
       }
     case IfThenElseExp(condexp, thenexp, elseexp) =>
-      val condtype = typeCheck(condexp, vtenv, ftenv)
-      val thentype = typeCheck(thenexp, vtenv, ftenv)
-      val elsetype = typeCheck(elseexp, vtenv, ftenv)
+      val condtype = typeCheck(condexp, tenv)
+      val thentype = typeCheck(thenexp, tenv)
+      val elsetype = typeCheck(elseexp, tenv)
       if (condtype != BoolType())
         throw TypeError(s"Type mismatch at if condition: Unexpected type ${unparse(condtype)}", e)
       if (thentype != elsetype)
         throw TypeError(s"Type mismatch at if, then and else have different types ${unparse(thentype)} and ${unparse(elsetype)}", e)
       thentype
     case BlockExp(vals, defs, exp) =>
-      var tenv = (vtenv, ftenv)
+      var tenv1 = tenv
       for (d <- vals) {
-        val t = typeCheck(d.exp, tenv._1, tenv._2)
+        val t = typeCheck(d.exp, tenv1)
         checkTypesEqual(t, d.opttype, d)
-        tenv = (tenv._1 + (d.x -> d.opttype.getOrElse(t)), tenv._2)
+        tenv1 = tenv1 + (d.x -> d.opttype.getOrElse(t))
       }
       for (d <- defs) {
-        val funType = getFunType(d)
-        tenv = (tenv._1, tenv._2 + (d.fun -> funType))
+        val funType = makeFunType(d)
+        tenv1 = tenv1 + (d.fun -> funType)
       }
       for (d <- defs) {
-        var tenv1 = tenv
+        var tenv2 = tenv1
         for (p <- d.params) {
-          tenv1 = (tenv1._1 + (p.x -> p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p))), tenv1._2)
+          tenv2 = tenv2 + (p.x -> p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p)))
         }
-        val funType = getFunType(d)
-        checkTypesEqual(funType._2, Some(typeCheck(d.body, tenv1._1, tenv1._2)), d)
+        val funType = makeFunType(d)
+        checkTypesEqual(funType._2, Some(typeCheck(d.body, tenv2)), d)
       }
-      typeCheck(exp, tenv._1, tenv._2)
-    case TupleExp(exps) => TupleType(exps.map(e => typeCheck(e, vtenv, ftenv)))
+      typeCheck(exp, tenv1)
+    case TupleExp(exps) => TupleType(exps.map(e => typeCheck(e, tenv)))
     case MatchExp(exp, cases) =>
-      val exptype = typeCheck(exp, vtenv, ftenv)
+      val exptype = typeCheck(exp, tenv)
       exptype match {
         case TupleType(ts) =>
           for (c <- cases) {
             if (ts.length == c.pattern.length) {
-              val newVtenv = vtenv ++ c.pattern.zip(ts)
-              return typeCheck(c.exp, newVtenv, ftenv)
+              val tenv1 = tenv ++ c.pattern.zip(ts)
+              return typeCheck(c.exp, tenv1)
             }
           }
           throw TypeError(s"No case matches type ${unparse(exptype)}", e)
         case _ => throw TypeError(s"Tuple expected at match, found ${unparse(exptype)}", e)
       }
-    case CallExp(fun, args) =>
-      val ftenv1 = ftenv.getOrElse(fun, throw TypeError(s"Unknown identifier $fun", e))
-      if (ftenv1._1.length != args.length)
+    case CallExp(funexp, args) =>
+      val fun = typeCheck(funexp, tenv) match
+        case ft@FunType(_,_) => ft
+        case t@_ => throw TypeError(s"$t is not a closure", e)
+      if (fun.paramtypes.length != args.length)
         throw TypeError(s"Wrong number of arguments for function $fun", e)
-      val argTypePairs = ftenv1._1.zip(args)
+      val argTypePairs = fun.paramtypes.zip(args)
       for ((t, a) <- argTypePairs) {
-        val argType = typeCheck(a, vtenv, ftenv)
+        val argType = typeCheck(a, tenv)
         checkTypesEqual(t, Some(argType), e)
       }
-      ftenv1._2
+      fun.restype
+    case LambdaExp(params, body) =>
+      var tenv1 = tenv
+      for (p <- params) {
+        tenv1 = tenv1 + (p.x -> p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", e)))
+      }
+      val returnType = typeCheck(body, tenv1)
+      makeFunType(DefDecl("_", params, Some(returnType), body))
   }
 
   /**
-    * Returns the parameter types and return type for the function declaration `d`.
+    * Returns the function type for the function declaration `d`.
     */
-  def getFunType(d: DefDecl): (List[Type], Type) =
-    (d.params.map(p => p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p))),
+  def makeFunType(d: DefDecl): FunType =
+    FunType(d.params.map(p => p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p))),
       d.optrestype.getOrElse(throw TypeError(s"Type annotation missing at function result ${d.fun}", d)))
 
   /**
@@ -159,11 +166,11 @@ object TypeChecker {
   /**
    * Builds an initial type environment, with a type for each free variable in the program.
    */
-  def makeInitialVarTypeEnv(program: Exp): VarTypeEnv = {
-    var vtenv: VarTypeEnv = Map()
+  def makeInitialTypeEnv(program: Exp): TypeEnv = {
+    var tenv: TypeEnv = Map()
     for (x <- Vars.freeVars(program))
-      vtenv = vtenv + (x -> IntType())
-    vtenv
+      tenv = tenv + (x -> IntType())
+    tenv
   }
 
   /**

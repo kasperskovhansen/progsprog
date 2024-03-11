@@ -22,25 +22,23 @@ object Interpreter {
 
   case class TupleVal(vs: List[Val]) extends Val
 
-  case class Closure(params: List[FunParam], optrestype: Option[Type], body: Exp, venv: VarEnv, fenv: FunEnv, defs: List[DefDecl])
+  case class ClosureVal(params: List[FunParam], optrestype: Option[Type], body: Exp, env: Env, defs: List[DefDecl]) extends Val
 
-  type VarEnv = Map[Var, Val]
-
-  type FunEnv = Map[Fun, Closure]
+  type Env = Map[Id, Val]
 
   /**
    * Evaluates an expression.
    */
-  def eval(e: Exp, venv: VarEnv, fenv: FunEnv): Val = e match {
+  def eval(e: Exp, env: Env): Val = e match {
     case IntLit(c) => IntVal(c)
     case BoolLit(c) => BoolVal(c)
     case FloatLit(c) => FloatVal(c)
     case StringLit(c) => StringVal(c)
     case VarExp(x) =>
-      venv.getOrElse(x, throw InterpreterError(s"Unknown identifier '$x'", e))
+      env.getOrElse(x, throw InterpreterError(s"Unknown identifier '$x'", e))
     case BinOpExp(leftexp, op, rightexp) =>
-      val leftval = eval(leftexp, venv, fenv)
-      val rightval = eval(rightexp, venv, fenv)
+      val leftval = eval(leftexp, env)
+      val rightval = eval(rightexp, env)
       val res = op match {
         case PlusBinOp() =>
           (leftval, rightval) match {
@@ -154,7 +152,7 @@ object Interpreter {
       trace(s"Evaluating (${Unparser.unparse(e)}) to ${valueToString(res)}")
       res
     case UnOpExp(op, exp) =>
-      val expval = eval(exp, venv, fenv)
+      val expval = eval(exp, env)
       val res = op match {
         case NegUnOp() =>
           expval match {
@@ -172,25 +170,22 @@ object Interpreter {
       res
     case IfThenElseExp(condexp, thenexp, elseexp) =>
       trace(s"Evaluating if-statement: ${Unparser.unparse(e)}")
-      val condval = eval(condexp, venv, fenv)
+      val condval = eval(condexp, env)
       checkValueType(condval, Some(BoolType()), e)
       trace(s"If: Type of condition is Bool as expected.")
       val branchString = if condval == BoolVal(true) then "then" else "else"
       trace(s"If: Evaluating $branchString branch")
       if condval == BoolVal(true) then {
-        eval(thenexp, venv, fenv)
+        eval(thenexp, env)
       } else {
-        eval(elseexp, venv, fenv)
+        eval(elseexp, env)
       }
     case b@BlockExp(vals, defs, exp) =>
       trace("Opening block")
-      var venv1 = venv
-      var fenv1 = fenv
+      var env1 = env
       for (d <- vals ++ defs)
-        val (venv2, fenv2) = eval(d, venv1, fenv1, b)
-        venv1 = venv2
-        fenv1 = fenv2
-      val result = eval(exp, venv1, fenv1)
+        env1 = eval(d, env1, b)
+      val result = eval(exp, env1)
       trace("Closing block")
       trace(s"Block evaluated to ${valueToString(result)}")
       result
@@ -198,59 +193,62 @@ object Interpreter {
       trace(s"Evaluating tuple: ${Unparser.unparse(e)}")
       var vals = List[Val]()
       for (exp <- exps)
-        vals = eval(exp, venv, fenv) :: vals
+        vals = eval(exp, env) :: vals
       TupleVal(vals.reverse)
     case MatchExp(exp, cases) =>
       trace(s"Evaluating match: ${Unparser.unparse(e)}")
-      val expval = eval(exp, venv, fenv)
+      val expval = eval(exp, env)
       expval match {
         case TupleVal(vs) =>
           for (c <- cases) {
             trace(s"Matching against case ${Unparser.unparse(c)}")
             if (vs.length == c.pattern.length) {
-              val newVenv = venv ++ c.pattern.zip(vs)
+              val env1 = env ++ c.pattern.zip(vs)
               trace(s"Extended environment with: ${c.pattern.zip(vs)}")
               trace(s"Matched. Now evaluating case expression")
-              return eval(c.exp, newVenv, fenv)
+              return eval(c.exp, env1)
             }
           }
           throw InterpreterError(s"No case matches value ${valueToString(expval)}", e)
         case _ => throw InterpreterError(s"Tuple expected at match, found ${valueToString(expval)}", e)
       }
-    case CallExp(fun, args) =>
-      val closure = fenv.getOrElse(fun, throw InterpreterError(s"Unknown function '$fun'", e))
-      val argsValues = args.map(arg => eval(arg, venv, fenv))
+    case CallExp(funexp, args) =>
+      val closure: ClosureVal = eval(funexp, env) match
+        case cv@ClosureVal(_, _, _, _, _) => cv
+        case v@_ => throw InterpreterError(s"$v is not a function", e)
+      var env1: Env = closure.env
+      val argsValues = args.map(arg => eval(arg, env))
       if (argsValues.length != closure.params.length) {
         throw InterpreterError(s"Argument length mismatch. Requiring ${argsValues.length} parameters " +
           s"but only found ${closure.params.length} in closure.", e)
       }
       val paramValPairs = closure.params.zip(argsValues)
-
-      var closureVenv1: VarEnv = closure.venv
+      var closureEnv1: Env = closure.env
       for ((funParam, value) <- paramValPairs) {
         checkValueType(value, funParam.opttype, e)
-        closureVenv1 = closureVenv1 + (funParam.x -> value)
+        closureEnv1 = closureEnv1 + (funParam.x -> value)
       }
-      var closureFenv1: FunEnv = closure.fenv
       for (fDef <- closure.defs) {
-        closureFenv1 = closureFenv1 +
-          (fDef.fun -> Closure(fDef.params, fDef.optrestype, fDef.body, closure.venv, closure.fenv, closure.defs))
+        closureEnv1 = closureEnv1 +
+          (fDef.fun -> ClosureVal(fDef.params, fDef.optrestype, fDef.body, closure.env, closure.defs))
       }
-      val result = eval(closure.body, closureVenv1, closureFenv1)
+      val result = eval(closure.body, closureEnv1)
       checkValueType(result, closure.optrestype, e)
       result
+
+    case LambdaExp(params, body) =>
+      ClosureVal(params, None, body, env, List())
   }
 
   /**
    * Evaluates a declaration.
    */
-  def eval(d: Decl, venv: VarEnv, fenv: FunEnv, b: BlockExp): (VarEnv, FunEnv) = d match {
+  def eval(d: Decl, env: Env, b: BlockExp): Env = d match {
     case ValDecl(x, opttype, exp) =>
-      val venv1 = venv + (x -> eval(exp, venv, fenv))
-      (venv1, fenv)
+      env + (x -> eval(exp, env))
     case DefDecl(fun, params, optrestype, body) =>
-      val fenv1 = fenv + (fun -> Closure(params, optrestype, body, venv, fenv, b.defs))
-      (venv, fenv1)
+      val env1 = env + (fun -> ClosureVal(params, optrestype, body, env, b.defs))
+      env1
   }
 
   /**
@@ -267,9 +265,23 @@ object Interpreter {
         case (TupleVal(vs), TupleType(ts)) if vs.length == ts.length =>
           for ((vi, ti) <- vs.zip(ts))
             checkValueType(vi, Some(ti), n)
+        case (ClosureVal(cparams, optcrestype, _, _, _), FunType(paramtypes, restype)) if cparams.length == paramtypes.length =>
+          for ((p, t) <- cparams.zip(paramtypes))
+            checkTypesEqual(t, p.opttype, n)
+          checkTypesEqual(restype, optcrestype, n)
         case _ =>
           throw InterpreterError(s"Type mismatch: value ${valueToString(v)} does not match type ${unparse(t)}", n)
       }
+    case None => // do nothing
+  }
+
+  /**
+   * Checks that the types `t1` and `ot2` are equal (if present), throws type error exception otherwise.
+   */
+  def checkTypesEqual(t1: Type, ot2: Option[Type], n: AstNode): Unit = ot2 match {
+    case Some(t2) =>
+      if (t1 != t2)
+        throw InterpreterError(s"Type mismatch: type ${unparse(t1)} does not match type ${unparse(t2)}", n)
     case None => // do nothing
   }
 
@@ -282,18 +294,20 @@ object Interpreter {
     case BoolVal(c) => c.toString
     case StringVal(c) => c
     case TupleVal(vs) => vs.map(valueToString).mkString("(", ",", ")")
+    case ClosureVal(params, _, exp, _, _) => // the resulting string ignores the result type annotation and the declaration environment
+      s"<(${params.map(unparse).mkString(",")}), ${unparse(exp)}>"
   }
 
   /**
    * Builds an initial environment, with a value for each free variable in the program.
    */
-  def makeInitialVarEnv(program: Exp): VarEnv = {
-    var venv = Map[Var, Val]()
+  def makeInitialEnv(program: Exp): Env = {
+    var env = Map[Id, Val]()
     for (x <- Vars.freeVars(program)) {
       print(s"Please provide an integer value for the variable $x: ")
-      venv = venv + (x -> IntVal(StdIn.readInt()))
+      env = env + (x -> IntVal(StdIn.readInt()))
     }
-    venv
+    env
   }
 
   /**

@@ -20,7 +20,8 @@ object Parser extends PackratParsers {
   private lazy val prog: PackratParser[Exp] = phrase { expr }
 
   private lazy val expr: PackratParser[Exp] =
-    ifthenelse |
+    lambda |
+      ifthenelse |
       mmatch |
       infixexpr
 
@@ -29,8 +30,7 @@ object Parser extends PackratParsers {
 
   private lazy val prefixexpr: PackratParser[Exp] =
     unopexp |
-      call |
-      simpleexpr
+      chainexp
 
   private lazy val simpleexpr: PackratParser[Exp] =
     block |
@@ -117,9 +117,22 @@ object Parser extends PackratParsers {
   private lazy val appl: PackratParser[List[Exp]] =
     (LEFT_PAREN() ~ repsep(expr, COMMA()) ~ RIGHT_PAREN()) ^^ { case _ ~ apps ~ _ => apps }
 
-  private lazy val call: PackratParser[Exp] = positioned {
-    (identifier ~ appl) ^^ { case id ~ args => CallExp(id.str, args) }
+  private lazy val lambda: PackratParser[Exp] = positioned {
+    LEFT_PAREN() ~ repsep(identifier ~ opttypeannotation, COMMA()) ~ RIGHT_PAREN() ~ ARROW() ~! expr ^^ {
+      case _ ~ identifiers ~ _ ~ _ ~ body =>
+        LambdaExp(identifiers.map(p => FunParam(p._1.str, p._2).setPos(p._1.pos)), body)
+    } |
+      identifier ~ ARROW() ~! expr ^^ {
+        case id ~ _ ~ body => LambdaExp(List(FunParam(id.str, None).setPos(id.pos)), body)
+      }
   }
+
+  private lazy val chainexp: PackratParser[Exp] =
+    simpleexpr ~ rep(appl) ^^ {
+      case e ~ es => es.foldLeft(e) {
+        case (e1, e2) => CallExp(e1, e2)
+      }
+    }
 
   private lazy val valdecl: PackratParser[Decl] = positioned {
     (VVAL() ~! identifier ~! opttypeannotation ~! EQ() ~! expr) ^^ {
@@ -150,11 +163,17 @@ object Parser extends PackratParsers {
   }
 
   private lazy val unopexp: PackratParser[Exp] = positioned {
-    (unop ~ (call | simpleexpr)) ^^ { case op ~ exp => UnOpExp(op, exp) }
+    (unop ~ chainexp) ^^ { case op ~ exp => UnOpExp(op, exp) }
   }
 
   private lazy val typeannotation: PackratParser[Type] = positioned {
-    (LEFT_PAREN() ~ typeannotation ~ COMMA() ~ rep1sep(typeannotation, COMMA()) ~ RIGHT_PAREN()) ^^ {
+    (LEFT_PAREN() ~ repsep(typeannotation, COMMA()) ~ RIGHT_PAREN() ~ ARROW() ~! typeannotation) ^^ {
+      case _ ~ t1 ~ _ ~ _ ~ t2 => FunType(t1, t2)
+    } |
+      (simpletypeannotation ~ ARROW() ~! typeannotation) ^^ {
+        case t1 ~ _ ~ t2 => FunType(List(t1), t2)
+      } |
+      (LEFT_PAREN() ~ typeannotation ~ COMMA() ~ rep1sep(typeannotation, COMMA()) ~ RIGHT_PAREN()) ^^ {
         case _ ~ t ~ _ ~ ts ~ _ => TupleType(t :: ts)
       } |
       (LEFT_PAREN() ~ typeannotation ~ RIGHT_PAREN()) ^^ {

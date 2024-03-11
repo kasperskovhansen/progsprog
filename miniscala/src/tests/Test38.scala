@@ -84,7 +84,7 @@ object Test38 {
     println("All tests passed successfully!")
   }
 
-  def test(prg: String, out: Type, env: VarTypeEnv = Map[Var, Type]()): Unit = {
+  def test(prg: String, out: Type, env: TypeEnv = Map[Id, Type]()): Unit = {
 //    assert(typeCheck(parse(prg), env) == out)
   }
 
