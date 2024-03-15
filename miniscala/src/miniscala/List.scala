@@ -1,0 +1,5 @@
+package miniscala
+
+object List {
+
+}
