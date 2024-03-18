@@ -58,7 +58,7 @@ object Week7 {
   def intersection[A](set1: Set[A], set2: Set[A]): Set[A] = difference(set1, difference(set1, set2))
 
   def difference[A](set1: Set[A], set2: Set[A]): Set[A] = foldLeft(set2, set1, (acc: Set[A], y: A) =>
-    if contains(acc, y) then remove(acc, y) else acc)
+    remove(acc, y))
 
   // converts a set from our own representation to Scala's
   def toScalaSet[A](set: Set[A]): scala.Predef.Set[A] =
@@ -67,6 +67,6 @@ object Week7 {
   // converts a Scala list to our representation of a set
   def fromScalaList[A](list: scala.List[A]): Set[A] =
     list.foldLeft(makeEmpty[A]())((acc, x) => add(acc, x))
-  
+
   //  def map[A, B](set: Set[A], f: A => B): Set[B] = foldLeft(set, Nil(), (acc: Set[B], y: A) => add(acc, f(y)))
 }
