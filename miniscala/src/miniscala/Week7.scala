@@ -51,7 +51,7 @@ object Week7 {
   def contains[A](set: Set[A], x: A): Boolean = exists(set, (y: A) => x == y)
 
   def remove[A](set: Set[A], x: A): Set[A] = foldLeft(set, makeEmpty(), (acc: MyList[A], y: A) =>
-    if x != y then append(acc, y) else acc)
+    if x != y then add(acc, y) else acc)
 
   def union[A](set1: Set[A], set2: Set[A]): Set[A] = foldLeft(set2, set1, (acc: MyList[A], y: A) => add(acc, y))
 
