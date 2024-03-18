@@ -67,6 +67,4 @@ object Week7 {
   // converts a Scala list to our representation of a set
   def fromScalaList[A](list: scala.List[A]): Set[A] =
     list.foldLeft(makeEmpty[A]())((acc, x) => add(acc, x))
-
-  //  def map[A, B](set: Set[A], f: A => B): Set[B] = foldLeft(set, Nil(), (acc: Set[B], y: A) => add(acc, f(y)))
 }
