@@ -5,6 +5,7 @@ import miniscala.IntList.{Cons, IntList, Nil}
 import miniscala.Simplifier.simplify
 import miniscala.Unparser.unparse
 import miniscala.parser.Parser
+import scala.collection.immutable.List
 
 import scala.annotation.tailrec
 

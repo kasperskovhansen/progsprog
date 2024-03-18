@@ -4,6 +4,7 @@ import miniscala.Ast.*
 import miniscala.Unparser.unparse
 
 import scala.io.StdIn
+import scala.collection.immutable.List
 
 /**
  * Interpreter for MiniScala.
@@ -182,9 +183,10 @@ object Interpreter {
       }
     case b@BlockExp(vals, defs, exp) =>
       trace("Opening block")
-      var env1 = env
-      for (d <- vals ++ defs)
-        env1 = eval(d, env1, b)
+      val env1 = (vals ++ defs).foldLeft(env) { (acc, d) => eval(d, acc, b) }
+      //      var env1 = env
+      //      for (d <- vals ++ defs)
+      //        env1 = eval(d, env1, b)
       val result = eval(exp, env1)
       trace("Closing block")
       trace(s"Block evaluated to ${valueToString(result)}")
@@ -223,16 +225,32 @@ object Interpreter {
           s"but only found ${closure.params.length} in closure.", e)
       }
       val paramValPairs = closure.params.zip(argsValues)
-      var closureEnv1: Env = closure.env
-      for ((funParam, value) <- paramValPairs) {
-        checkValueType(value, funParam.opttype, e)
-        closureEnv1 = closureEnv1 + (funParam.x -> value)
+
+      // Functional approach:
+      val closureEnv1 = paramValPairs.foldLeft(closure.env) {
+        (acc: Env, funParamVal)
+        => {
+          checkValueType(funParamVal._2, funParamVal._1.opttype, e)
+          acc + (funParamVal._1.x -> funParamVal._2)
+        }
       }
-      for (fDef <- closure.defs) {
-        closureEnv1 = closureEnv1 +
+      val closureEnv2 = closure.defs.foldLeft(closureEnv1) { (acc, fDef) =>
+        acc +
           (fDef.fun -> ClosureVal(fDef.params, fDef.optrestype, fDef.body, closure.env, closure.defs))
       }
-      val result = eval(closure.body, closureEnv1)
+      val result = eval(closure.body, closureEnv2)
+
+      // Replaces:
+      //      var closureEnv1: Env = closure.env
+      //      for ((funParam, value) <- paramValPairs) {
+      //        checkValueType(value, funParam.opttype, e)
+      //        closureEnv1 = closureEnv1 + (funParam.x -> value)
+      //      }
+      //      for (fDef <- closure.defs) {
+      //        closureEnv1 = closureEnv1 +
+      //          (fDef.fun -> ClosureVal(fDef.params, fDef.optrestype, fDef.body, closure.env, closure.defs))
+      //      }
+      //      val result = eval(closure.body, closureEnv1)
       checkValueType(result, closure.optrestype, e)
       result
 
@@ -302,12 +320,17 @@ object Interpreter {
    * Builds an initial environment, with a value for each free variable in the program.
    */
   def makeInitialEnv(program: Exp): Env = {
-    var env = Map[Id, Val]()
-    for (x <- Vars.freeVars(program)) {
-      print(s"Please provide an integer value for the variable $x: ")
-      env = env + (x -> IntVal(StdIn.readInt()))
+    Vars.freeVars(program).foldLeft(Map[Id, Val]()) {
+      (acc, x) => {
+        acc + (x -> IntVal(StdIn.readInt()))
+      }
     }
-    env
+    //    var env = Map[Id, Val]()
+    //    for (x <- Vars.freeVars(program)) {
+    //      print(s"Please provide an integer value for the variable $x: ")
+    //      env = env + (x -> IntVal(StdIn.readInt()))
+    //    }
+    //    env
   }
 
   /**
