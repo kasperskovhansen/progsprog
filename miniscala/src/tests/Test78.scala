@@ -10,6 +10,11 @@ object Test78 {
     assert(size(mySet) == 0)
     assert(isEmpty(mySet))
     assert(!contains(mySet, "abc"))
+    // Test size of set
+    var mySetSize = add(makeEmpty(), "abc")
+    assert(size(mySetSize) == 1)
+    mySetSize = add(mySetSize, "abc")
+    assert(size(mySetSize) == 1)
     // Test add to set
     mySet = add(mySet, "abc")
     assert(contains(mySet, "abc"))
