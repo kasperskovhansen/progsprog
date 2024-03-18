@@ -2,7 +2,9 @@ package miniscala
 
 import miniscala.Ast.*
 import miniscala.Unparser.unparse
+import miniscala.Week7.toScalaSet
 
+import scala.collection.immutable.List
 import scala.io.StdIn
 
 /**
@@ -303,7 +305,7 @@ object Interpreter {
    */
   def makeInitialEnv(program: Exp): Env = {
     var env = Map[Id, Val]()
-    for (x <- Vars.freeVars(program)) {
+    for (x <- toScalaSet(Vars.freeVars(program))) {
       print(s"Please provide an integer value for the variable $x: ")
       env = env + (x -> IntVal(StdIn.readInt()))
     }

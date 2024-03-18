@@ -1,7 +1,6 @@
 package miniscala
 
 import scala.util.parsing.input.{NoPosition, Position, Positional}
-
 /**
  * Abstract syntax tree representation of MiniScala programs.
  */

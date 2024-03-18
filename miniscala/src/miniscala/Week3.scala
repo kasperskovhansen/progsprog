@@ -1,6 +1,6 @@
 package miniscala
-
 import miniscala.Ast._
+import scala.collection.immutable.List
 import miniscala.IntList.{Cons, IntList, Nil}
 import miniscala.Simplifier.simplify
 import miniscala.Unparser.unparse

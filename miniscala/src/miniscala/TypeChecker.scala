@@ -2,6 +2,7 @@ package miniscala
 
 import miniscala.Ast.*
 import miniscala.Unparser.unparse
+import miniscala.Week7.toScalaSet
 
 /**
  * Type checker for MiniScala.
@@ -168,7 +169,7 @@ object TypeChecker {
    */
   def makeInitialTypeEnv(program: Exp): TypeEnv = {
     var tenv: TypeEnv = Map()
-    for (x <- Vars.freeVars(program))
+    for (x <- toScalaSet(Vars.freeVars(program)))
       tenv = tenv + (x -> IntType())
     tenv
   }
