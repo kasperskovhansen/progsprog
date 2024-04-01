@@ -8,33 +8,34 @@ import scala.io.StdIn
 import scala.collection.immutable.List
 
 /**
-  * Compiler from (a large part of) MiniScala v5 to lambda calculus.
-  */
+ * Compiler from (a large part of) MiniScala v5 to lambda calculus.
+ */
 object Lambda {
 
   val FIX: Exp = Parser.parse("(x=>y=>(y(z=>x(x)(y)(z))))(x=>y=>(y(z=>x(x)(y)(z))))") // slide 26
 
   /**
-    * Convenience function for creating a LambdaExp with a single parameter without type annotation.
-    */
+   * Convenience function for creating a LambdaExp with a single parameter without type annotation.
+   */
   def lambda(x: Id, body: Exp): LambdaExp = LambdaExp(List(FunParam(x, None)), body)
 
   /**
-    * Convenience function for creating a CallExp with a single argument.
-    */
+   * Convenience function for creating a CallExp with a single argument.
+   */
   def call(funexp: Exp, arg: Exp): CallExp = CallExp(funexp, List(arg))
 
   def encode(e: Exp): Exp =
     e match {
       case IntLit(c) if c >= 0 => // non-negative integer literals are encoded as on slide 18
-        ???
+        if (c == 0) lambda("s", lambda("z", VarExp("z")))
+        else lambda("s", lambda("z", call(VarExp("s"), encode(IntLit(c - 1)))))
       case BoolLit(c) => // boolean literals are encoded as on slide 15
         if (c) lambda("t", lambda("e", VarExp("t")))
         else lambda("t", lambda("e", VarExp("e")))
       case VarExp(_) => // variables need no encoding
         e
       case BinOpExp(leftexp, EqualBinOp(), IntLit(0)) => // e == 0, slide 18
-        ???
+        call(call(encode(leftexp), lambda("n", encode(BoolLit(false)))), encode(BoolLit(true)))
       case BinOpExp(leftexp, MinusBinOp(), IntLit(1)) => // e - 1, slide 20
         lambda("s", lambda("z",
           call(call(call(encode(leftexp),
@@ -74,7 +75,7 @@ object Lambda {
       case UnOpExp(op, subexp) =>
         op match {
           case NotUnOp() => // !e, slide 15
-            ???
+            call(call(encode(subexp), encode(BoolLit(false))), encode(BoolLit(true)))
           case _ => // remaining cases are not (yet) implemented
             throw EncoderError(e)
         }
@@ -84,7 +85,7 @@ object Lambda {
           lambda("a", call(encode(thenexp), VarExp("a")))),
           lambda("b", call(encode(elseexp), VarExp("b")))) // mimics call-by-name
       case BlockExp(List(ValDecl(id, _, e1)), List(), e2: Exp) => // { val x = e1; e2 }, slide 24
-        ???
+        call(lambda(id, encode(e2)), encode(e1))
       case BlockExp(List(), List(DefDecl(f, List(FunParam(x, _)), _, e1)), e2: Exp) => // { def f(x) = e1; e2 }, slide 26
         call(lambda(f, encode(e2)),
           call(FIX,
@@ -130,7 +131,8 @@ object Lambda {
   def decodeBoolean(v: Val): Boolean = v match {
     case ClosureVal(List(FunParam(x, _)), _, exp, env, _) =>
       val unchurch = // see slide 22
-        ???
+        call(call(lambda(x, exp),
+          BoolLit(true)), BoolLit(false))
       Interpreter.eval(unchurch, env) match {
         case BoolVal(c) => c
         case _ => throw RuntimeException(s"Unexpected decoded value $v")
@@ -139,8 +141,8 @@ object Lambda {
   }
 
   /**
-    * Builds an initial environment, with a lambda-encoded value for each free variable in the program.
-    */
+   * Builds an initial environment, with a lambda-encoded value for each free variable in the program.
+   */
   def makeInitialEnv(program: Exp): Env = {
     var env = Map[Id, Val]()
     for (x <- Vars.freeVars(program)) {
