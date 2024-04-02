@@ -23,6 +23,6 @@ object Week8 {
     // { val x = e1; e2 }
     println(Lambda.encode(Ast.BlockExp(List(Ast.ValDecl("x", None, Ast.IntLit(1))), List(), Ast.VarExp("x"))))
     // Decode boolean
-    println(Lambda.decodeBoolean(Interpreter.eval(Lambda.encode(Ast.BoolLit(false)), Map[Id, Val]())))
+    println(Lambda.decodeBoolean(Interpreter.eval(Lambda.encode(Ast.BoolLit(true)), Map[Id, Val]())))
   }
 }

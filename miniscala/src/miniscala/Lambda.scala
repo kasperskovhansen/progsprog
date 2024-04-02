@@ -27,8 +27,11 @@ object Lambda {
   def encode(e: Exp): Exp =
     e match {
       case IntLit(c) if c >= 0 => // non-negative integer literals are encoded as on slide 18
-        if (c == 0) lambda("s", lambda("z", VarExp("z")))
-        else lambda("s", lambda("z", call(VarExp("s"), encode(IntLit(c - 1)))))
+        var acc: Exp = VarExp("z")
+        for (i <- 0 until c) {
+          acc = call(VarExp("s"), acc)
+        }
+        lambda("s", lambda("z", acc))
       case BoolLit(c) => // boolean literals are encoded as on slide 15
         if (c) lambda("t", lambda("e", VarExp("t")))
         else lambda("t", lambda("e", VarExp("e")))
