@@ -12,17 +12,17 @@ import scala.collection.immutable.List
 object Week8 {
 
   def main(args: Array[String]): Unit = {
-    // Natural numbers
-    println(Lambda.encode(Ast.IntLit(0)))
-    println(Lambda.encode(Ast.IntLit(1)))
-    println(Lambda.encode(Ast.IntLit(2)))
-    // e == 0
-    println(Lambda.encode(Ast.BinOpExp(Ast.IntLit(1), Ast.EqualBinOp(), Ast.IntLit(0))))
-    // !e
-    println(Lambda.encode(Ast.UnOpExp(Ast.NotUnOp(), Ast.BoolLit(true))))
-    // { val x = e1; e2 }
-    println(Lambda.encode(Ast.BlockExp(List(Ast.ValDecl("x", None, Ast.IntLit(1))), List(), Ast.VarExp("x"))))
-    // Decode boolean
-    println(Lambda.decodeBoolean(Interpreter.eval(Lambda.encode(Ast.BoolLit(true)), Map[Id, Val]())))
+//    // Natural numbers
+//    println(Lambda.encode(Ast.IntLit(0)))
+//    println(Lambda.encode(Ast.IntLit(1)))
+//    println(Lambda.encode(Ast.IntLit(2)))
+//    // e == 0
+//    println(Lambda.encode(Ast.BinOpExp(Ast.IntLit(1), Ast.EqualBinOp(), Ast.IntLit(0))))
+//    // !e
+//    println(Lambda.encode(Ast.UnOpExp(Ast.NotUnOp(), Ast.BoolLit(true))))
+//    // { val x = e1; e2 }
+//    println(Lambda.encode(Ast.BlockExp(List(Ast.ValDecl("x", None, Ast.IntLit(1))), List(), Ast.VarExp("x"))))
+//    // Decode boolean
+//    println(Lambda.decodeBoolean(Interpreter.eval(Lambda.encode(Ast.BoolLit(true)), Map[Id, Val]())))
   }
 }

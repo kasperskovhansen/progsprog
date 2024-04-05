@@ -16,7 +16,6 @@ object Options {
       |  -run      parse and run the program
       |  -types    parse and type-check the program
       |  -trace    trace when running
-      |  -lambda   parse, translate to lambda calculus, unparse and run the resulting program, and decode the resulting value as a number
     """.stripMargin
 
   var unparse = false
@@ -26,8 +25,6 @@ object Options {
   var types = false
 
   var trace = false
-
-  var lambda = false
 
   var file: String = _
 
@@ -42,7 +39,6 @@ object Options {
           case "-run" => run = true
           case "-types" => types = true
           case "-trace" => trace = true
-          case "-lambda" => lambda = true
           case _ =>
             throw OptionsError(s"Error: option not recognized: $arg")
         }

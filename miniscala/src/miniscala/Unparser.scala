@@ -22,16 +22,24 @@ object Unparser {
             val result = exps.map(exp => unparse(exp))
             "(" + result.mkString(", ") + ")"
           case VarExp(v) => v
-          case BlockExp(vals, funs, exp) =>
+          case BlockExp(vals, vars, funs, exps) =>
             val valDeclString =
               vals.foldLeft("") {
                 case (acc, valDecl) => acc + unparse(valDecl) + "; "
               }
-            val fullDeclString =
-              funs.foldLeft(valDeclString) {
+            val varDeclString =
+              vars.foldLeft("") {
+                case (acc, varDecl) => acc + unparse(varDecl) + "; "
+              }
+            val defDeclString =
+              funs.foldLeft(varDeclString) {
                 case (acc, funDecl) => acc + unparse(funDecl) + "; "
               }
-            s"{${fullDeclString}${unparse(exp)}}"
+            val expsString =
+              exps.foldLeft(defDeclString) {
+                case (acc, exp) => acc + unparse(exp) + "; "
+              }
+            s"{$expsString}"
           case IfThenElseExp(cond, thenExp, elseExp) =>
             s"if (${unparse(cond)}) ${unparse(thenExp)} else ${unparse(elseExp)}"
           case MatchExp(exp, cases) =>

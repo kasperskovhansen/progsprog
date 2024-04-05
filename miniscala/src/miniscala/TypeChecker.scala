@@ -10,12 +10,19 @@ object TypeChecker {
 
   type TypeEnv = Map[Id, Type]
 
+  case class MutableType(thetype: Type) extends Type
+
+  val unitType: Type = TupleType(Nil)
+
   def typeCheck(e: Exp, tenv: TypeEnv): Type = e match {
     case IntLit(_) => IntType()
     case BoolLit(_) => BoolType()
     case FloatLit(_) => FloatType()
     case StringLit(_) => StringType()
-    case VarExp(x) => tenv.getOrElse(x, throw TypeError(s"Unknown identifier $x", e))
+    case VarExp(x) => tenv.getOrElse(x, throw TypeError(s"Unknown identifier '$x'", e)) match {
+      case MutableType(thetype) => thetype
+      case t: Type => t
+    }
     case BinOpExp(leftexp, op, rightexp) =>
       val lefttype = typeCheck(leftexp, tenv)
       val righttype = typeCheck(rightexp, tenv)
@@ -91,7 +98,7 @@ object TypeChecker {
       if (thentype != elsetype)
         throw TypeError(s"Type mismatch at if, then and else have different types ${unparse(thentype)} and ${unparse(elsetype)}", e)
       thentype
-    case BlockExp(vals, defs, exp) =>
+    case BlockExp(vals, vars, defs, exps) =>
       var tenv1 = tenv
       for (d <- vals) {
         val t = typeCheck(d.exp, tenv1)
@@ -110,7 +117,10 @@ object TypeChecker {
         val funType = makeFunType(d)
         checkTypesEqual(funType._2, Some(typeCheck(d.body, tenv2)), d)
       }
-      typeCheck(exp, tenv1)
+      for (exp: Exp <- exps) {
+        typeCheck(exp, tenv1)
+      }
+      typeCheck(exps.last, tenv1)
     case TupleExp(exps) => TupleType(exps.map(e => typeCheck(e, tenv)))
     case MatchExp(exp, cases) =>
       val exptype = typeCheck(exp, tenv)
@@ -144,6 +154,10 @@ object TypeChecker {
       }
       val returnType = typeCheck(body, tenv1)
       makeFunType(DefDecl("_", params, Some(returnType), body))
+    case AssignmentExp(x, exp) =>
+      ???
+    case WhileExp(cond, body) =>
+      ???
   }
 
   /**
