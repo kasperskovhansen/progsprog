@@ -25,7 +25,7 @@ object Test95 {
 
     // <-- add more test cases here
     test("{ def f(e: Int): Int => Int = { def y(e0: Int): Int = e + e0; y }; f(2 + 2)(3 + 3) }", IntVal(10), IntType())
-    test("{ val x = 1; { val x = 2; x } }", IntVal(2), IntType())
+    test("{ var x = 1; { var x = 2; x } }", IntVal(2), IntType())
     test("{ var x = 1;  x = x + 2; x }", IntVal(3), IntType())
 
     println("All tests passed successfully!")

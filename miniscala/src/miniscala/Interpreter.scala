@@ -51,14 +51,8 @@ object Interpreter {
         case v: Val => (v, sto)
       }
     case BinOpExp(leftexp, op, rightexp) =>
-      val (leftval, sto1) = eval(leftexp, env, sto) match {
-        case (RefVal(loc, _), sto2) => (sto2(loc), sto2)
-        case (v, sto2) => (v, sto2)
-      }
-      val (rightval, sto2) = eval(rightexp, env, sto1) match {
-        case (RefVal(loc, _), sto2) => (sto2(loc), sto2)
-        case (v, sto2) => (v, sto2)
-      }
+      val (leftval, sto1) = eval(leftexp, env, sto)
+      val (rightval, sto2) = eval(rightexp, env, sto1)
 
       val res: (Val, Sto) = op match {
         case PlusBinOp() =>
@@ -318,7 +312,7 @@ object Interpreter {
       (env1, sto1)
     case VarDecl(x, opttype, exp) =>
       val (v, sto1) = eval(exp, env, sto)
-      val newLoc: Loc = nextLoc(sto)
+      val newLoc: Loc = nextLoc(sto1)
       val env1 = env + (x -> RefVal(newLoc, opttype))
       val sto2 = sto1 + (newLoc -> v)
       checkValueType(v, opttype, d)
