@@ -24,6 +24,7 @@ object Interpreter {
   case class TupleVal(vs: List[Val]) extends Val
 
   case class ClosureVal(params: List[FunParam], optrestype: Option[Type], body: Exp, env: Env, defs: List[DefDecl]) extends Val
+
   case class RefVal(loc: Loc, opttype: Option[Type]) extends Val
 
   val unitVal: Val = TupleVal(Nil)
@@ -50,8 +51,15 @@ object Interpreter {
         case v: Val => (v, sto)
       }
     case BinOpExp(leftexp, op, rightexp) =>
-      val (leftval, sto1) = eval(leftexp, env, sto)
-      val (rightval, sto2) = eval(rightexp, env, sto1)
+      val (leftval, sto1) = eval(leftexp, env, sto) match {
+        case (RefVal(loc, _), sto2) => (sto2(loc), sto2)
+        case (v, sto2) => (v, sto2)
+      }
+      val (rightval, sto2) = eval(rightexp, env, sto1) match {
+        case (RefVal(loc, _), sto2) => (sto2(loc), sto2)
+        case (v, sto2) => (v, sto2)
+      }
+
       val res: (Val, Sto) = op match {
         case PlusBinOp() =>
           (leftval, rightval) match {
@@ -183,8 +191,8 @@ object Interpreter {
       res
     case IfThenElseExp(condexp, thenexp, elseexp) =>
       trace(s"Evaluating if-statement: ${Unparser.unparse(e)}")
-      val condval = eval(condexp, env, sto)
-      checkValueType(condval._1, Some(BoolType()), e)
+      val (condval, sto1) = eval(condexp, env, sto)
+      checkValueType(condval, Some(BoolType()), e)
       trace(s"If: Type of condition is Bool as expected.")
       val branchString = if condval == BoolVal(true) then "then" else "else"
       trace(s"If: Evaluating $branchString branch")
@@ -193,7 +201,7 @@ object Interpreter {
       } else {
         eval(elseexp, env, sto)
       }
-    case b @ BlockExp(vals, vars, defs, exps) =>
+    case b@BlockExp(vals, vars, defs, exps) =>
       trace("Opening block")
       var env1 = env
       var sto1 = sto
@@ -239,7 +247,7 @@ object Interpreter {
       }
     case CallExp(funexp, args) =>
       val closure: ClosureVal = eval(funexp, env, sto) match
-        case (cv@ClosureVal(_, _, _, _, _),sto) => cv
+        case (cv@ClosureVal(_, _, _, _, _), sto) => cv
         case v@_ => throw InterpreterError(s"$v is not a function", e)
       var env1: Env = closure.env
       val argsValues = args.map(arg => eval(arg, env, sto))
@@ -264,25 +272,40 @@ object Interpreter {
       val result = eval(closure.body, closureEnv2, sto)
 
       // Replaces:
-      //      var closureEnv1: Env = closure.env
-      //      for ((funParam, value) <- paramValPairs) {
-      //        checkValueType(value, funParam.opttype, e)
-      //        closureEnv1 = closureEnv1 + (funParam.x -> value)
-      //      }
-      //      for (fDef <- closure.defs) {
-      //        closureEnv1 = closureEnv1 +
-      //          (fDef.fun -> ClosureVal(fDef.params, fDef.optrestype, fDef.body, closure.env, closure.defs))
-      //      }
-      //      val result = eval(closure.body, closureEnv1)
+//            var closureEnv1: Env = closure.env
+//            for ((funParam, value) <- paramValPairs) {
+//              checkValueType(value._1, funParam.opttype, e)
+//              closureEnv1 = closureEnv1 + (funParam.x -> value._1)
+//            }
+//            for (fDef <- closure.defs) {
+//              closureEnv1 = closureEnv1 +
+//                (fDef.fun -> ClosureVal(fDef.params, fDef.optrestype, fDef.body, closure.env, closure.defs))
+//            }
+//            val result = eval(closure.body, closureEnv1, sto)
       checkValueType(result._1, closure.optrestype, e)
       result
 
     case LambdaExp(params, body) =>
       (ClosureVal(params, None, body, env, List()), sto)
     case AssignmentExp(x, exp) =>
-      ???
+      val (v, sto1) = eval(exp, env, sto)
+      val lookup: Val = env.getOrElse(x, throw new InterpreterError(s"Missing identifier: $x", e))
+      lookup match
+        case RefVal(loc, opttype) =>
+          val sto2 = sto1 + (loc -> v)
+          checkValueType(v, opttype, e)
+          (unitVal, sto2)
+        case _ => throw new InterpreterError(s"Variable immutable: $x", e)
     case WhileExp(cond, body) =>
-      ???
+      val (v, sto1) = eval(cond, env, sto)
+      v match
+        case BoolVal(true) =>
+          val (v2, sto2) = eval(body, env, sto1)
+          eval(e, env, sto2)
+        case BoolVal(false) =>
+          (unitVal, sto1)
+        case _ =>
+          throw new InterpreterError(s"Condition didn't evaluate to a boolean: ${cond}", e)
   }
 
   /**
@@ -294,7 +317,12 @@ object Interpreter {
       val env1 = env + (x -> v)
       (env1, sto1)
     case VarDecl(x, opttype, exp) =>
-      ???
+      val (v, sto1) = eval(exp, env, sto)
+      val newLoc: Loc = nextLoc(sto)
+      val env1 = env + (x -> RefVal(newLoc, opttype))
+      val sto2 = sto1 + (newLoc -> v)
+      checkValueType(v, opttype, d)
+      (env1, sto2)
     case DefDecl(fun, params, optrestype, body) =>
       val env1 = env + (fun -> ClosureVal(params, optrestype, body, env, b.defs))
       (env1, sto)
@@ -352,17 +380,17 @@ object Interpreter {
    * Builds an initial environment, with a value for each free variable in the program.
    */
   def makeInitialEnv(program: Exp): Env = {
-    Vars.freeVars(program).foldLeft(Map[Id, Val]()) {
-      (acc, x) => {
-        acc + (x -> IntVal(StdIn.readInt()))
-      }
-    }
-    //    var env = Map[Id, Val]()
-    //    for (x <- Vars.freeVars(program)) {
-    //      print(s"Please provide an integer value for the variable $x: ")
-    //      env = env + (x -> IntVal(StdIn.readInt()))
-    //    }
-    //    env
+//    Vars.freeVars(program).foldLeft(Map[Id, Val]()) {
+//      (acc, x) => {
+//        acc + (x -> IntVal(StdIn.readInt()))
+//      }
+//    }
+        var env = Map[Id, Val]()
+        for (x <- Vars.freeVars(program)) {
+          print(s"Please provide an integer value for the variable $x: ")
+          env = env + (x -> IntVal(StdIn.readInt()))
+        }
+        env
   }
 
   /**

@@ -105,6 +105,11 @@ object TypeChecker {
         checkTypesEqual(t, d.opttype, d)
         tenv1 = tenv1 + (d.x -> d.opttype.getOrElse(t))
       }
+      for (d <- vars) {
+        val t = typeCheck(d.exp, tenv1)
+        checkTypesEqual(t, d.opttype, d)
+        tenv1 = tenv1 + (d.x -> MutableType(d.opttype.getOrElse(t)))
+      }
       for (d <- defs) {
         val funType = makeFunType(d)
         tenv1 = tenv1 + (d.fun -> funType)
@@ -155,9 +160,21 @@ object TypeChecker {
       val returnType = typeCheck(body, tenv1)
       makeFunType(DefDecl("_", params, Some(returnType), body))
     case AssignmentExp(x, exp) =>
-      ???
+      tenv.getOrElse(x, throw TypeError(s"Unknown identifier '$x'", e)) match {
+        case MutableType(thetype) =>
+          val tau = typeCheck(exp, tenv)
+          checkTypesEqual(tau, Some(thetype), e)
+          unitType
+        case t: Type => throw TypeError(s"Assignment to immutable variable: $x", e)
+      }
     case WhileExp(cond, body) =>
-      ???
+      val tau = typeCheck(cond, tenv)
+      tau match {
+        case BoolType() =>
+          typeCheck(body, tenv)
+          unitType
+        case _ => throw TypeError(s"Condition must be of type boolean: $cond", e)
+      }
   }
 
   /**

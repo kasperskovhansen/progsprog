@@ -51,6 +51,10 @@ object Unparser {
           case LambdaExp(params, e) =>
             val paramStrings = params.map(p => s"${p.x}${unparse(p.opttype)}")
             s"(${paramStrings.mkString(", ")}) => ${unparse(e)}"
+          case AssignmentExp(x, e) =>
+            s"$x = ${unparse(e)}"
+          case WhileExp(cond, body) =>
+            s"while (${unparse(cond)}) ${unparse(body)}"
         }
       case op: BinOp =>
         op match
