@@ -30,7 +30,7 @@ object Main {
       if (Options.run) {
         // Functional approach:
         val initialEnv = Interpreter.makeInitialEnv(program)
-        val (result, _) = Interpreter.eval(program, initialEnv, Map())
+        val (result, _) = Interpreter.eval(program, initialEnv, Map(), Map())
         // Object-oriented style:
         // val result = program.eval()
         println(s"Output: ${Interpreter.valueToString(result)}")

@@ -22,7 +22,7 @@ object Unparser {
             val result = exps.map(exp => unparse(exp))
             "(" + result.mkString(", ") + ")"
           case VarExp(v) => v
-          case BlockExp(vals, vars, funs, exps) =>
+          case BlockExp(vals, vars, funs, classes, exps) =>
             val valDeclString =
               vals.foldLeft("") {
                 case (acc, valDecl) => acc + unparse(valDecl) + "; "
@@ -35,8 +35,12 @@ object Unparser {
               funs.foldLeft(varDeclString) {
                 case (acc, funDecl) => acc + unparse(funDecl) + "; "
               }
+            val classDeclString =
+              classes.foldLeft(defDeclString) {
+                case (acc, classDecl) => acc + unparse(classDecl) + "; "
+              }
             val expsString =
-              exps.foldLeft(defDeclString) {
+              exps.foldLeft(classDeclString) {
                 case (acc, exp) => acc + unparse(exp) + "; "
               }
             s"{$expsString}"
@@ -47,7 +51,7 @@ object Unparser {
             s"${unparse(exp)} match {\n$casesString\n}"
           case CallExp(fun, args) =>
             val result = args.map(arg => unparse(arg))
-            s"$fun(${result.mkString(", ")})"
+            s"${unparse(fun)}(${result.mkString(", ")})"
           case LambdaExp(params, e) =>
             val paramStrings = params.map(p => s"${p.x}${unparse(p.opttype)}")
             s"(${paramStrings.mkString(", ")}) => ${unparse(e)}"
@@ -55,6 +59,13 @@ object Unparser {
             s"$x = ${unparse(e)}"
           case WhileExp(cond, body) =>
             s"while (${unparse(cond)}) ${unparse(body)}"
+          case NewObjExp(klass, args) =>
+            val result = args.map(arg => unparse(arg))
+            s"new $klass(${result.mkString(", ")})"
+          case LookupExp(obj, field) =>
+            s"${unparse(obj)}.$field"
+
+
         }
       case op: BinOp =>
         op match
@@ -77,7 +88,9 @@ object Unparser {
       case decl: Decl =>
         decl match
           case ValDecl(x, t, exp) => s"val $x${unparse(t)} = ${unparse(exp)}"
+          case VarDecl(x, t, exp) => s"var $x${unparse(t)} = ${unparse(exp)}"
           case DefDecl(fun, params, t, body) => s"def $fun(${params.map(param => unparse(param)).mkString(", ")})${unparse(t)} = ${unparse(body)}"
+          case ClassDecl(name, params, body) => s"class $name(${params.map(param => unparse(param)).mkString(", ")}) { ${unparse(body)} }"
       case t: Type => t match {
         case IntType() => "Int"
         case BoolType() => "Bool"
@@ -93,6 +106,7 @@ object Unparser {
         val patternString = pattern.mkString(", ")
         s"case ($patternString) => ${unparse(exp)}"
       case FunParam(x, t) => s"$x${unparse(t)}"
+      case _ => n.toString
     }
   } // this unparse function can be used for all kinds of AstNode objects, including Exp objects (see Ast.scala)
 

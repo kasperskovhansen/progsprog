@@ -46,7 +46,7 @@ object Ast {
 //    override def eval(): Int = c
 //  }
 
-  case class BlockExp(vals: List[ValDecl], vars: List[VarDecl], defs: List[DefDecl], exps: List[Exp]) extends Exp
+  case class BlockExp(vals: List[ValDecl], vars: List[VarDecl], defs: List[DefDecl], classes: List[ClassDecl], exps: List[Exp]) extends Exp
 
   case class TupleExp(exps: List[Exp]) extends Exp
 
@@ -59,6 +59,10 @@ object Ast {
   case class AssignmentExp(x: Id, exp: Exp) extends Exp
 
   case class WhileExp(cond: Exp, body: Exp) extends Exp
+
+  case class NewObjExp(klass: Id, args: List[Exp]) extends Exp
+
+  case class LookupExp(objexp: Exp, member: Id) extends Exp
 
   /**
     * Literals.
@@ -136,6 +140,8 @@ object Ast {
   case class DefDecl(fun: Id, params: List[FunParam], optrestype: Option[Type], body: Exp) extends Decl
 
   case class FunType(paramtypes: List[Type], restype: Type) extends Type
+
+  case class ClassDecl(klass: Id, params: List[FunParam], body: BlockExp) extends Decl
 
   /**
     * Function parameters.

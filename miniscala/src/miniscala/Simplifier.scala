@@ -37,7 +37,7 @@ object Simplifier {
         case MaxBinOp() => (leftSimp, rightSimp) match
           case (IntLit(a), IntLit(b)) if a == b => IntLit(a)
           case _ => default
-    case BlockExp(valDecls, varDecls, defDecls, exps) => {
+    case BlockExp(valDecls, varDecls, defDecls, classes, exps) => {
 //      val newValDecls = valDecls.map((decl) => decl match {
 //        case ValDecl(x, t, e) => ValDecl(x, t, simplify(e))
 //      })

@@ -98,7 +98,7 @@ object TypeChecker {
       if (thentype != elsetype)
         throw TypeError(s"Type mismatch at if, then and else have different types ${unparse(thentype)} and ${unparse(elsetype)}", e)
       thentype
-    case BlockExp(vals, vars, defs, exps) =>
+    case BlockExp(vals, vars, defs, classes, exps) =>
       var tenv1 = tenv
       for (d <- vals) {
         val t = typeCheck(d.exp, tenv1)
@@ -175,6 +175,10 @@ object TypeChecker {
           unitType
         case _ => throw TypeError(s"Condition must be of type boolean: $cond", e)
       }
+    case NewObjExp(klass, args) =>
+      ???
+    case LookupExp(objexp, member) =>
+      ???
   }
 
   /**

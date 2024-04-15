@@ -24,5 +24,18 @@ object Week8 {
 //    println(Lambda.encode(Ast.BlockExp(List(Ast.ValDecl("x", None, Ast.IntLit(1))), List(), Ast.VarExp("x"))))
 //    // Decode boolean
 //    println(Lambda.decodeBoolean(Interpreter.eval(Lambda.encode(Ast.BoolLit(true)), Map[Id, Val]())))
+
+    { var z: Int = 0;
+      { def increment(count: Int): Unit = {
+        var i = 0;
+        while(i <= count) {
+          z = z + 1;
+          i = i + 1
+        };
+        z
+      };
+        increment(9)
+      }
+    }
   }
 }
