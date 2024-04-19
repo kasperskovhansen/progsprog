@@ -23,7 +23,7 @@ object Main {
       // type check the program, if enabled
       if (Options.types) {
         val initialTypeEnv = TypeChecker.makeInitialTypeEnv(program)
-        TypeChecker.typeCheck(program, initialTypeEnv)
+        TypeChecker.typeCheck(program, initialTypeEnv, Map())
       }
 
       // execute the program, if enabled

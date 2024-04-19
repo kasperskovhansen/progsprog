@@ -5,6 +5,7 @@ import miniscala.Unparser.unparse
 
 import scala.io.StdIn
 import scala.collection.immutable.List
+import scala.util.parsing.input.Position
 
 /**
  * Interpreter for MiniScala.
@@ -27,13 +28,15 @@ object Interpreter {
 
   case class RefVal(loc: Loc, opttype: Option[Type]) extends Val
 
-  case class ObjRefVal(loc: Loc) extends Val
+  case class ObjRefVal(loc: Loc, opttype: Option[Type]) extends Val
 
   case class ObjectVal(members: Env) extends Val
 
   val unitVal: Val = TupleVal(Nil)
 
-  case class Constructor(params: List[FunParam], body: BlockExp, env: Env, cenv: ClassEnv, classes: List[ClassDecl])
+  case class Constructor(params: List[FunParam], body: BlockExp, env: Env, cenv: ClassEnv, classes: List[ClassDecl], srcpos: Position)
+
+  case class DynamicClassType(srcpos: Position) extends Type
 
   type Env = Map[Id, Val]
 
@@ -53,6 +56,7 @@ object Interpreter {
     case BoolLit(c) => (BoolVal(c), sto)
     case FloatLit(c) => (FloatVal(c), sto)
     case StringLit(c) => (StringVal(c), sto)
+    case NullLit() => ???
     case VarExp(x) =>
       (getValue(env.getOrElse(x, throw InterpreterError(s"Unknown identifier '$x'", e)), sto), sto)
     case BinOpExp(leftexp, op, rightexp) =>
@@ -252,7 +256,7 @@ object Interpreter {
       val (closure, sto1): (ClosureVal, Sto) = eval(funexp, env, cenv, sto) match
         case res@(ClosureVal(_, _, _, _, _, _), sto) => res
         case v@_ => throw InterpreterError(s"$v is not a function", e)
-      val (env2ext, sto2) = evalArgs(args, closure.params, env, sto1, cenv, closure.env, e)
+      val (env2ext, sto2) = evalArgs(args, closure.params, env, sto1, cenv, closure.env, closure.cenv, e)
       val (val2, sto3) = eval(closure.body, env2ext, closure.cenv, sto2)
       trace("Checking type of result")
       checkValueType(val2, closure.optrestype, e)
@@ -284,19 +288,19 @@ object Interpreter {
       trace(s"Making new object: ${Unparser.unparse(e)}")
       val c = cenv.getOrElse(klass, throw InterpreterError(s"Unknown class name '$klass'", e))
       val declcenv1 = rebindClasses(c.env, c.cenv, c.classes)
-      val (declenv1, sto1) = evalArgs(args, c.params, env, sto, cenv, c.env, e)
+      val (declenv1, sto1) = evalArgs(args, c.params, env, sto, cenv, c.env, declcenv1, e)
       val (_, env1, sto2) = evalBlock(c.body, declenv1, declcenv1, sto1)
       val newloc = nextLoc(sto2)
       trace(s"Creating new object at location $newloc")
       val objenv = (c.body.defs.map(d => d.fun -> env1(d.fun)) ++ c.body.vars.map(d => d.x -> env1(d.x)) ++ c.body.vals.map(d => d.x -> env1(d.x))).toMap
       val sto3 = sto2 + (newloc -> ObjectVal(objenv))
       trace("Successfully created new object")
-      (ObjRefVal(newloc), sto3)
+      (ObjRefVal(newloc, Some(DynamicClassType(c.srcpos))), sto3)
     case LookupExp(objexp, member) =>
       trace(s"Looking up member $member of object: ${Unparser.unparse(e)}")
       val (objval, sto1) = eval(objexp, env, cenv, sto)
       val (valres, sto2) = objval match {
-        case ObjRefVal(loc) =>
+        case ObjRefVal(loc, _) =>
           trace(s"Object value is an object reference, looking up in store")
           sto1(loc) match {
             case ObjectVal(members) =>
@@ -315,6 +319,8 @@ object Interpreter {
   def eval(d: Decl, env: Env, cenv: ClassEnv, sto: Sto, b: BlockExp): (Env, ClassEnv, Sto) = d match {
     case ValDecl(x, opttype, exp) =>
       val (v, sto1) = eval(exp, env, cenv, sto)
+      val ot = getType(opttype, cenv)
+      checkValueType(v, ot, d)
       val env1 = env + (x -> v)
       (env1, cenv, sto1)
     case VarDecl(x, opttype, exp) =>
@@ -328,7 +334,7 @@ object Interpreter {
       val env1 = env + (fun -> ClosureVal(params, optrestype, body, env, cenv, b.defs))
       (env1, cenv, sto)
     case ClassDecl(klass, params, body) =>
-      val cenv1 = cenv + (klass -> Constructor(params, body, env, cenv, b.classes))
+      val cenv1 = cenv + (klass -> Constructor(params, body, env, cenv, b.classes, d.pos))
       (env, cenv1, sto)
   }
 
@@ -366,14 +372,14 @@ object Interpreter {
    * extends the environment `declenv` with the new bindings, and
    * returns the extended environment and the latest store.
    */
-  def evalArgs(args: List[Exp], params: List[FunParam], env: Env, sto: Sto, cenv: ClassEnv, declenv: Env, e: Exp): (Env, Sto) = {
+  def evalArgs(args: List[Exp], params: List[FunParam], env: Env, sto: Sto, cenv: ClassEnv, declenv: Env, declcenv: ClassEnv, e: Exp): (Env, Sto) = {
     trace(s"Evaluating arguments: ${args.map(Unparser.unparse).mkString(", ")}")
     if (args.length != params.length) throw InterpreterError("Wrong number of arguments at call/new", e)
     var (env1, sto1) = (declenv, sto)
     for ((p, arg) <- params.zip(args)) {
       trace(s"Evaluating argument: ${Unparser.unparse(arg)}")
       val (argval, sto2) = eval(arg, env, cenv, sto1)
-      checkValueType(argval, p.opttype, arg)
+      checkValueType(argval, getType(p.opttype, declcenv), arg)
       env1 = env1 + (p.x -> argval)
       sto1 = sto2
     }
@@ -406,10 +412,25 @@ object Interpreter {
     var cenv1 = cenv
     for (d <- classes)
       trace(s"Rebinding class: ${d.klass}")
-      cenv1 = cenv1 + (d.klass -> Constructor(d.params, d.body, env, cenv, classes))
+      cenv1 = cenv1 + (d.klass -> Constructor(d.params, d.body, env, cenv, classes, d.pos))
     trace("Finished rebinding classes")
     cenv1
   }
+
+  /**
+    * Returns the type described by the type annotation `ot` (if present).
+    * Class names are converted to proper types according to the class environment `cenv`.
+    */
+  def getType(ot: Option[Type], cenv: ClassEnv): Option[Type] = ot.map(t => {
+    def getType(t: Type): Type = t match {
+      case ClassNameType(klass) => DynamicClassType(cenv.getOrElse(klass, throw InterpreterError(s"Unknown class '$klass'", t)).srcpos)
+      case IntType() | BoolType() | FloatType() | StringType() | NullType() => t
+      case TupleType(ts) => TupleType(ts.map(getType))
+      case FunType(paramtypes, restype) => FunType(paramtypes.map(getType), getType(restype))
+      case _ => throw RuntimeException(s"Unexpected type $t") // (unreachable case)
+    }
+    getType(t)
+  })
 
   /**
    * Checks whether value `v` has type `ot` (if present), generates runtime type error otherwise.
@@ -425,10 +446,13 @@ object Interpreter {
         case (TupleVal(vs), TupleType(ts)) if vs.length == ts.length =>
           for ((vi, ti) <- vs.zip(ts))
             checkValueType(vi, Some(ti), n)
-        case (ClosureVal(cparams, optcrestype, _, _, _, _), FunType(paramtypes, restype)) if cparams.length == paramtypes.length =>
+        case (ClosureVal(cparams, optcrestype, _, _, cenv, _), FunType(paramtypes, restype)) if cparams.length == paramtypes.length =>
           for ((p, t) <- cparams.zip(paramtypes))
-            checkTypesEqual(t, p.opttype, n)
-          checkTypesEqual(restype, optcrestype, n)
+            checkTypesEqual(t, getType(p.opttype, cenv), n)
+          checkTypesEqual(restype, getType(optcrestype, cenv), n)
+        case (ObjRefVal(_, Some(vd: DynamicClassType)), td: DynamicClassType) =>
+          if (vd != td)
+            throw InterpreterError(s"Type mismatch: object of type ${unparse(vd)} does not match type ${unparse(td)}", n)
         case _ =>
           throw InterpreterError(s"Type mismatch: value ${valueToString(v)} does not match type ${unparse(t)}", n)
       }
@@ -456,7 +480,7 @@ object Interpreter {
     case TupleVal(vs) => vs.map(valueToString).mkString("(", ",", ")")
     case ClosureVal(params, _, exp, _, _, _) => // the resulting string ignores the result type annotation and the declaration environment
       s"<(${params.map(unparse).mkString(",")}), ${unparse(exp)}>"
-    case ObjRefVal(loc) => s"object#$loc"
+    case ObjRefVal(loc, _) => s"object#$loc" // the resulting string ignores the type annotation
     case RefVal(loc, _) => s"ref#$loc"
     case _ => throw RuntimeException(s"Unexpected value $v") // (unreachable case)
   }

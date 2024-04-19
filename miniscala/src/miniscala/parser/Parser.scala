@@ -207,7 +207,8 @@ object Parser extends PackratParsers {
     strliteral ^^ { lit => StringLit(lit.str) } |
       boolliteral ^^ { lit => BoolLit(lit.b) } |
       intliteral ^^ { lit => IntLit(lit.i) } |
-      floatliteral ^^ { lit => FloatLit(lit.v) }
+      floatliteral ^^ { lit => FloatLit(lit.v) } |
+      nullliteral ^^ { _ => NullLit() }
   }
 
   private lazy val unopexp: PackratParser[Exp] = positioned {
@@ -231,15 +232,17 @@ object Parser extends PackratParsers {
   }
 
   private lazy val simpletypeannotation: PackratParser[Type] = positioned {
-    (simpletype filter {(t: Tokens.SIMPLE_TYPE) => List("Int", "String", "Boolean", "Float", "Unit").contains(t.str)}) ^^ {
+    simpletype ^^ {
       t => t.str match {
         case "Int" => IntType()
         case "String" => StringType()
         case "Boolean" => BoolType()
         case "Float" => FloatType()
         case "Unit" => TupleType(Nil)
+        case "Null" => NullType()
       }
-    }
+    } |
+      identifier ^^ (id => ClassNameType(id.str).setPos(id.pos))
   }
 
   private def binop(prec: Int): PackratParser[BinOp] = positioned {
@@ -274,6 +277,8 @@ object Parser extends PackratParsers {
   private lazy val boolliteral: PackratParser[BOOL] = accept("boolean literal", { case lit: BOOL => lit })
 
   private lazy val floatliteral: PackratParser[FLOAT] = accept("float literal", { case lit: FLOAT => lit })
+
+  private lazy val nullliteral: PackratParser[NULL] = accept("null literal", { case lit: NULL => lit })
 
   private lazy val identifier: PackratParser[IDENTIFIER] = accept("identifier", { case id: IDENTIFIER => id })
 

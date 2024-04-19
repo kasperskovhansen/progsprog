@@ -77,6 +77,8 @@ object Ast {
 
   case class StringLit(c: String) extends Literal
 
+  case class NullLit() extends Literal
+
   /**
    * Binary operators.
    */
@@ -142,6 +144,10 @@ object Ast {
   case class FunType(paramtypes: List[Type], restype: Type) extends Type
 
   case class ClassDecl(klass: Id, params: List[FunParam], body: BlockExp) extends Decl
+
+  case class ClassNameType(klass: Id) extends Type
+
+  case class NullType() extends Type
 
   /**
     * Function parameters.
