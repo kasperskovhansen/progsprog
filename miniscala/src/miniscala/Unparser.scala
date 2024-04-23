@@ -2,6 +2,7 @@ package miniscala
 
 import miniscala.Ast.*
 import miniscala.Interpreter.DynamicClassType
+import miniscala.TypeChecker.StaticClassType
 
 /**
  * Unparser for MiniScala.
@@ -110,6 +111,7 @@ object Unparser {
           s"${unparse(TupleType(argTypes))} => ${unparse(restype)}"
         case ClassNameType(klass) => klass
         case DynamicClassType(pos) => s"DynamicClassType($pos)"
+        case StaticClassType(klass, _, _, _, _) => s"StaticClassType($klass)"
       }
       case MatchCase(pattern, exp) =>
         val patternString = pattern.mkString(", ")

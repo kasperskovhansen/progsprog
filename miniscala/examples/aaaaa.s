@@ -1,5 +1,1 @@
-{
-    var x = 0;
-    do {x = x + 1} while (x < 0);
-    x
-}
+{ class A(x: Int) { val x: Int = x }; { def f(a: A): Int = a.x; f(new A(2)) } }

@@ -16,7 +16,7 @@ object TypeChecker {
 
   case class MutableType(thetype: Type) extends Type
 
-  case class StaticClassType(srcpos: Position, params: List[Type], membertypes: TypeEnv) extends Type
+  case class StaticClassType(srcpos: Position, params: List[Type], membertypes: TypeEnv, ctenv: ClassTypeEnv, classes: List[ClassDecl]) extends Type
 
   val unitType: Type = TupleType(Nil)
 
@@ -116,7 +116,8 @@ object TypeChecker {
       }
       for (d <- vars) {
         val t = typeCheck(d.exp, tenv1, ctenv)
-        checkSubtype(t, d.opttype, d)
+        val ot = getType(d.opttype, ctenv)
+        checkSubtype(t, ot, d)
         tenv1 = tenv1 + (d.x -> MutableType(d.opttype.getOrElse(t)))
       }
       for (d <- defs) {
@@ -126,17 +127,19 @@ object TypeChecker {
       for (d <- defs) {
         var tenv2 = tenv1
         for (p <- d.params) {
-          tenv2 = tenv2 + (p.x -> p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p)))
+          tenv2 = tenv2 + (p.x -> getType(p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p)), ctenv))
         }
         val funType = makeFunType(d)
         checkSubtype(funType._2, Some(typeCheck(d.body, tenv2, ctenv)), d)
       }
       for (c <- classes) {
+        var tenv2 = tenv1
         val staticClassType = makeStaticClassType(c, ctenv, classes)
         ctenv1 = ctenv1 + (c.klass -> staticClassType)
-        val ids = c.params.map { f => f.x }
-        val tenv2 = tenv1 ++ ids.zip(staticClassType.params)
-        typeCheck(c.body, tenv2, ctenv)
+        for (p <- c.params) {
+          tenv2 = tenv2 + (p.x -> p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p)))
+        }
+        typeCheck(c.body, tenv2, ctenv1)
       }
       var resType: Type = unitType
       for (exp: Exp <- exps) {
@@ -166,7 +169,7 @@ object TypeChecker {
       val argTypePairs = fun.paramtypes.zip(args)
       for ((t, a) <- argTypePairs) {
         val argType = typeCheck(a, tenv, ctenv)
-        checkSubtype(t, Some(argType), e)
+        checkSubtype(argType, getType(Some(t), ctenv), e)
       }
       fun.restype
     case LambdaExp(params, body) =>
@@ -197,25 +200,33 @@ object TypeChecker {
       val e2Type = typeCheck(cond, tenv, ctenv)
       e2Type match {
         case BoolType() => unitType
-        case _ => throw TypeError(s"Condition must be of type boolean: $cond", e)
+        case _ => throw TypeError(s"Do-while condition must be of type boolean: $cond", e)
       }
     case NewObjExp(klass, args) =>
-      val staticClassType = ctenv.getOrElse(klass, throw TypeError(s"Unknown class '$klass'", e))
-      if (staticClassType.params.length != args.length)
+      val sct = ctenv.getOrElse(klass, throw TypeError(s"Unknown class '$klass'", e))
+      if (sct.params.length != args.length)
         throw TypeError(s"Wrong number of arguments for class $klass", e)
-      val argTypePairs = staticClassType.params.zip(args)
+
+      val ctenv1 = rebindClasses(sct.ctenv, sct.classes)
+
+      val params = sct.params.map { p => getType(p, ctenv1) }
+
+      val argTypePairs = params.zip(args)
+
       for ((t, a) <- argTypePairs) {
-        val argType = typeCheck(a, tenv, ctenv)
+        val argType = typeCheck(a, tenv, ctenv1)
         checkSubtype(t, Some(argType), e)
       }
-      staticClassType
+      sct
     case LookupExp(objexp, member) =>
       val objtype = typeCheck(objexp, tenv, ctenv)
-      objtype match {
-        case StaticClassType(_, _, membertypes) =>
-          membertypes.getOrElse(member, throw TypeError(s"Unknown member '$member' in object of type ${unparse(objtype)}", e))
+      val sct = objtype match {
+        case sct: StaticClassType => sct
         case _ => throw TypeError(s"Object expected at lookup, found ${unparse(objtype)}", e)
       }
+      val ctenv1 = rebindClasses(sct.ctenv, sct.classes)
+      val mtypes = sct.membertypes.map { case (k, v) => (k, getType(v, ctenv1)) }
+      mtypes.getOrElse(member, throw TypeError(s"Unknown member '$member' in class ${sct}", e))
   }
 
   /**
@@ -248,12 +259,12 @@ object TypeChecker {
   def makeStaticClassType(d: ClassDecl, ctenv: ClassTypeEnv, classes: List[ClassDecl]): StaticClassType = {
     var membertypes: TypeEnv = Map()
     for (m <- d.body.vals)
-      membertypes = membertypes + (m.x -> getType(m.opttype.getOrElse(throw TypeError(s"Type annotation missing at field ${m.x}", m)), ctenv))
+      membertypes = membertypes + (m.x -> m.opttype.getOrElse(throw TypeError(s"Type annotation missing at field ${m.x}", m)))
     for (m <- d.body.vars)
-      membertypes = membertypes + (m.x -> getType(m.opttype.getOrElse(throw TypeError(s"Type annotation missing at field ${m.x}", m)), ctenv))
+      membertypes = membertypes + (m.x -> m.opttype.getOrElse(throw TypeError(s"Type annotation missing at field ${m.x}", m)))
     for (m <- d.body.defs)
-      membertypes = membertypes + (m.fun -> getType(makeFunType(m), ctenv))
-    StaticClassType(d.pos, d.params.map(f => getType(f.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${f.x}", d)), ctenv)), membertypes)
+      membertypes = membertypes + (m.fun -> makeFunType(m))
+    StaticClassType(d.pos, d.params.map(f => f.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${f.x}", d))), membertypes, ctenv, classes)
   }
 
   /**
@@ -281,14 +292,13 @@ object TypeChecker {
    */
   def subtype(t1: Type, t2: Type): Boolean = {
     (t1, t2) match {
-      case (a, b) if a == b => true
       case (IntType(), FloatType()) => true
       case (NullType(), ClassNameType(_)) => true
-      case (NullType(), StaticClassType(_, _, _)) => true
-      case (TupleType(ts1), TupleType(ts2)) => ts1.zip(ts2).forall { case (t1, t2) => subtype(t1, t2) }
+      case (NullType(), StaticClassType(_, _, _, _, _)) => true
+      case (TupleType(ts1), TupleType(ts2)) => ts1.zip(ts2).forall { (tt1, tt2) => subtype(tt1, tt2) }
       case (FunType(pt1, restype1), FunType(pt2, restype2)) =>
-        pt1.zip(pt2).forall { case (t1, t2) => subtype(t2, t1) } && subtype(restype1, restype2)
-      case _ => false
+        pt1.zip(pt2).forall {  (tt1, tt2) => subtype(tt2, tt1) } && subtype(restype1, restype2)
+      case _ => t1 == t2
     }
   }
 
@@ -306,6 +316,18 @@ object TypeChecker {
     case None => // do nothing
   }
 
+  /**
+   * Rebind classes
+   */
+  def rebindClasses(ctenv: ClassTypeEnv, classes: List[ClassDecl]): ClassTypeEnv = {
+    var ctenv1 = ctenv
+    for (c <- classes) {
+      val staticClassType = makeStaticClassType(c, ctenv, classes)
+      ctenv1 = ctenv1 + (c.klass -> staticClassType)
+    }
+    ctenv1
+  }
+  
   /**
    * Exception thrown in case of MiniScala type errors.
    */

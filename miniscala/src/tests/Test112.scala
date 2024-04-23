@@ -2,7 +2,7 @@ package miniscala
 
 import miniscala.Interpreter._
 import miniscala.parser.Parser.parse
-import  scala.collection.immutable.List
+import scala.collection.immutable.List
 object Test112 {
 
   def main(args: Array[String]): Unit = {
