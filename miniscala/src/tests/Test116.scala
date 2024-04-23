@@ -13,6 +13,10 @@ object Test116 {
     testVal("{var x = 0; true && {x = 1; true}; x}", IntVal(1))
     testVal("{var x = 0; true || {x = 1; false}; x}", IntVal(0))
     testVal("{var x = 0; false || {x = 1; false}; x}", IntVal(1))
+    testValFail("true && 5")
+    testValFail("false || 5")
+    testVal("false && 5", BoolVal(false))
+    testVal("true || 5", BoolVal(true))
 
     println("All tests passed successfully!")
   }

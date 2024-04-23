@@ -184,7 +184,9 @@ object Interpreter {
             case BoolVal(false) =>
               (BoolVal(false), sto1)
             case BoolVal(true) =>
-              eval(rightexp, env, cenv, sto1)
+              val (e2Val, sto2) = eval(rightexp, env, cenv, sto1)
+              checkValueType(e2Val, Some(BoolType()), e)
+              (e2Val, sto2)
             case _ => throw InterpreterError(s"First expression must evaluate to boolean, but got ${valueToString(e1Val)}", e)
           }
         case OrOrBinOp() =>
@@ -193,7 +195,9 @@ object Interpreter {
             case BoolVal(true) =>
               (BoolVal(true), sto1)
             case BoolVal(false) =>
-              eval(rightexp, env, cenv, sto1)
+              val (e2Val, sto2) = eval(rightexp, env, cenv, sto1)
+              checkValueType(e2Val, Some(BoolType()), e)
+              (e2Val, sto2)
             case _ => throw InterpreterError(s"First expression must evaluate to boolean, but got ${valueToString(e1Val)}", e)
           }
 
