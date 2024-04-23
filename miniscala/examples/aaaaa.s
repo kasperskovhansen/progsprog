@@ -1,5 +1,6 @@
-{
-    val fac2 = (f, n) => if (n == 0) 1 else n * f(f, n - 1);
-    val fac = (n) => fac2(fac2, n);
-    fac(3)
-}
+{ val x: Int = 42;
+  val y: Float = x;
+  class C() {}; 
+  { var z: C = null; 
+    z = null
+} }

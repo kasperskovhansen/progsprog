@@ -1,6 +1,7 @@
 package miniscala
 
 import miniscala.Ast.*
+import miniscala.Interpreter.DynamicClassType
 
 /**
  * Unparser for MiniScala.
@@ -18,6 +19,7 @@ object Unparser {
           case BoolLit(c) => c.toString
           case FloatLit(c) => c.toString
           case StringLit(c) => s"\"$c\""
+          case NullLit() => "null"
           case TupleExp(exps) =>
             val result = exps.map(exp => unparse(exp))
             "(" + result.mkString(", ") + ")"
@@ -96,11 +98,14 @@ object Unparser {
         case BoolType() => "Bool"
         case FloatType() => "Float"
         case StringType() => "String"
+        case NullType() => "Null"
         case TupleType(types: List[Type]) =>
           val result = types.map(t => unparse(t))
           "(" + result.mkString(", ") + ")"
         case FunType(argTypes: List[Type], restype: Type) =>
           s"${unparse(TupleType(argTypes))} => ${unparse(restype)}"
+        case ClassNameType(klass) => klass
+        case DynamicClassType(pos) => s"DynamicClassType($pos)"
       }
       case MatchCase(pattern, exp) =>
         val patternString = pattern.mkString(", ")

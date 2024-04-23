@@ -5,7 +5,7 @@ import miniscala.Unparser.unparse
 
 import scala.io.StdIn
 import scala.collection.immutable.List
-import scala.util.parsing.input.Position
+import scala.util.parsing.input.{NoPosition, Position}
 
 /**
  * Interpreter for MiniScala.
@@ -56,7 +56,7 @@ object Interpreter {
     case BoolLit(c) => (BoolVal(c), sto)
     case FloatLit(c) => (FloatVal(c), sto)
     case StringLit(c) => (StringVal(c), sto)
-    case NullLit() => ???
+    case NullLit() => (ObjRefVal(-1, None), sto)
     case VarExp(x) =>
       (getValue(env.getOrElse(x, throw InterpreterError(s"Unknown identifier '$x'", e)), sto), sto)
     case BinOpExp(leftexp, op, rightexp) =>
@@ -127,6 +127,7 @@ object Interpreter {
             case (BoolVal(v1), BoolVal(v2)) => (BoolVal(v1 == v2), sto)
             case (StringVal(v1), StringVal(v2)) => (BoolVal(v1 == v2), sto)
             case (TupleVal(v1), TupleVal(v2)) => (BoolVal(v1 == v2), sto)
+            case (ObjRefVal(l1, _), ObjRefVal(l2, _)) => (BoolVal(l1 == l2), sto)
             case _ => (BoolVal(false), sto)
           }
         case LessThanBinOp() =>
@@ -259,7 +260,8 @@ object Interpreter {
       val (env2ext, sto2) = evalArgs(args, closure.params, env, sto1, cenv, closure.env, closure.cenv, e)
       val (val2, sto3) = eval(closure.body, env2ext, closure.cenv, sto2)
       trace("Checking type of result")
-      checkValueType(val2, closure.optrestype, e)
+      val ot = getType(closure.optrestype, closure.cenv)
+      checkValueType(val2, ot, e)
       trace(s"Call evaluated to ${valueToString(val2)}")
       (val2, sto3)
 
@@ -299,6 +301,8 @@ object Interpreter {
     case LookupExp(objexp, member) =>
       trace(s"Looking up member $member of object: ${Unparser.unparse(e)}")
       val (objval, sto1) = eval(objexp, env, cenv, sto)
+      if (objval == ObjRefVal(-1, None))
+        throw InterpreterError(s"Null pointer exception when looking up $member", e)
       val (valres, sto2) = objval match {
         case ObjRefVal(loc, _) =>
           trace(s"Object value is an object reference, looking up in store")
@@ -325,10 +329,11 @@ object Interpreter {
       (env1, cenv, sto1)
     case VarDecl(x, opttype, exp) =>
       val (v, sto1) = eval(exp, env, cenv, sto)
+      val ot = getType(opttype, cenv)
       val newLoc: Loc = nextLoc(sto1)
-      val env1 = env + (x -> RefVal(newLoc, opttype))
+      val env1 = env + (x -> RefVal(newLoc, ot))
       val sto2 = sto1 + (newLoc -> v)
-      checkValueType(v, opttype, d)
+      checkValueType(v, ot, d)
       (env1, cenv, sto2)
     case DefDecl(fun, params, optrestype, body) =>
       val env1 = env + (fun -> ClosureVal(params, optrestype, body, env, cenv, b.defs))
@@ -450,6 +455,8 @@ object Interpreter {
           for ((p, t) <- cparams.zip(paramtypes))
             checkTypesEqual(t, getType(p.opttype, cenv), n)
           checkTypesEqual(restype, getType(optcrestype, cenv), n)
+        case (ObjRefVal(-1, None), td: DynamicClassType) => // null value
+          // do nothing
         case (ObjRefVal(_, Some(vd: DynamicClassType)), td: DynamicClassType) =>
           if (vd != td)
             throw InterpreterError(s"Type mismatch: object of type ${unparse(vd)} does not match type ${unparse(td)}", n)
@@ -480,6 +487,7 @@ object Interpreter {
     case TupleVal(vs) => vs.map(valueToString).mkString("(", ",", ")")
     case ClosureVal(params, _, exp, _, _, _) => // the resulting string ignores the result type annotation and the declaration environment
       s"<(${params.map(unparse).mkString(",")}), ${unparse(exp)}>"
+    case ObjRefVal(-1, _) => "null"
     case ObjRefVal(loc, _) => s"object#$loc" // the resulting string ignores the type annotation
     case RefVal(loc, _) => s"ref#$loc"
     case _ => throw RuntimeException(s"Unexpected value $v") // (unreachable case)
