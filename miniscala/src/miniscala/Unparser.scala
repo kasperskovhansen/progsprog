@@ -59,6 +59,8 @@ object Unparser {
             s"$x = ${unparse(e)}"
           case WhileExp(cond, body) =>
             s"while (${unparse(cond)}) ${unparse(body)}"
+          case DoWhileExp(body, cond) =>
+            s"do ${unparse(body)} while (${unparse(cond)})"
           case NewObjExp(klass, args) =>
             val result = args.map(arg => unparse(arg))
             s"new $klass(${result.mkString(", ")})"
@@ -80,6 +82,8 @@ object Unparser {
           case MaxBinOp() => " max "
           case AndBinOp() => " & "
           case OrBinOp() => " | "
+          case AndAndBinOp() => " && "
+          case OrOrBinOp() => " || "
       case op: UnOp =>
         op match {
           case NegUnOp() => "-"

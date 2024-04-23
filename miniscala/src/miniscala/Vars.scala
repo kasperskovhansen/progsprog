@@ -45,6 +45,7 @@ object Vars {
     case LambdaExp(params, body) => freeVars(body) -- params.map(p => p.x)
     case AssignmentExp(x, exp) => freeVars(exp) + x
     case WhileExp(guard, body) => freeVars(guard) ++ freeVars(body)
+    case DoWhileExp(body, guard) => freeVars(body) ++ freeVars(guard)
     case NewObjExp(_, args) =>
       var fv = Set[Id]()
       for (a <- args)

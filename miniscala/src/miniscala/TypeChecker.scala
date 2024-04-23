@@ -75,7 +75,7 @@ object TypeChecker {
             case (StringType(), StringType()) => BoolType()
             case _ => throw TypeError(s"Type mismatch at ${unparse(op)}, unexpected types ${unparse(lefttype)} and ${unparse(righttype)}", op)
           }
-        case AndBinOp() | OrBinOp() =>
+        case AndBinOp() | OrBinOp() | AndAndBinOp() | OrOrBinOp() =>
           (lefttype, righttype) match {
             case (BoolType(), BoolType()) => BoolType()
             case _ => throw TypeError(s"Type mismatch at ${unparse(op)}, unexpected types ${unparse(lefttype)} and ${unparse(righttype)}", op)
@@ -181,6 +181,13 @@ object TypeChecker {
         case BoolType() =>
           typeCheck(body, tenv, ctenv)
           unitType
+        case _ => throw TypeError(s"Condition must be of type boolean: $cond", e)
+      }
+    case DoWhileExp(body, cond) =>
+      typeCheck(body, tenv, ctenv)
+      val e2Type = typeCheck(cond, tenv, ctenv)
+      e2Type match {
+        case BoolType() => unitType
         case _ => throw TypeError(s"Condition must be of type boolean: $cond", e)
       }
     case NewObjExp(klass, args) =>

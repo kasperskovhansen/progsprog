@@ -284,6 +284,10 @@ object Interpreter {
           (unitVal, sto1)
         case _ =>
           throw new InterpreterError(s"Condition didn't evaluate to a boolean: ${cond}", e)
+    case DoWhileExp(body, cond) =>
+      val (_, sto1) = eval(body, env, cenv, sto)
+      val whileExp = WhileExp(cond, body)
+      eval(whileExp, env, cenv, sto1)
     case NewObjExp(klass, args) =>
       trace(s"Making new object: ${Unparser.unparse(e)}")
       val c = cenv.getOrElse(klass, throw InterpreterError(s"Unknown class name '$klass'", e))
