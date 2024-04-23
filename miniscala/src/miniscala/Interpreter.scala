@@ -60,8 +60,15 @@ object Interpreter {
     case VarExp(x) =>
       (getValue(env.getOrElse(x, throw InterpreterError(s"Unknown identifier '$x'", e)), sto), sto)
     case BinOpExp(leftexp, op, rightexp) =>
-      val (leftval, sto1) = eval(leftexp, env, cenv, sto)
-      val (rightval, sto2) = eval(rightexp, env, cenv, sto1)
+
+      val ((leftval: Val, sto1: Sto),(rightval: Val, sto2: Sto)) = op match {
+        case AndAndBinOp() | OrOrBinOp() =>
+          ((unitVal, sto), (unitVal, sto))
+        case _ =>
+          val (tempLeftVal, tempSto1) = eval(leftexp, env, cenv, sto)
+          val (tempRightVal, tempSto2) = eval(rightexp, env, cenv, tempSto1)
+          ((tempLeftVal, tempSto1), (tempRightVal, tempSto2))
+      }
 
       val res: (Val, Sto) = op match {
         case PlusBinOp() =>
@@ -171,6 +178,26 @@ object Interpreter {
             case _ => throw InterpreterError(s"Type mismatch at '|', " +
               s"unexpected values ${valueToString(leftval)} and ${valueToString(rightval)}", op)
           }
+        case AndAndBinOp() =>
+          val (e1Val, sto1) = eval(leftexp, env, cenv, sto)
+          e1Val match {
+            case BoolVal(false) =>
+              (BoolVal(false), sto1)
+            case BoolVal(true) =>
+              eval(rightexp, env, cenv, sto1)
+            case _ => throw InterpreterError(s"First expression must evaluate to boolean, but got ${valueToString(e1Val)}", e)
+          }
+        case OrOrBinOp() =>
+          val (e1Val, sto1) = eval(leftexp, env, cenv, sto)
+          e1Val match {
+            case BoolVal(true) =>
+              (BoolVal(true), sto1)
+            case BoolVal(false) =>
+              eval(rightexp, env, cenv, sto1)
+            case _ => throw InterpreterError(s"First expression must evaluate to boolean, but got ${valueToString(e1Val)}", e)
+          }
+
+
       }
       // Doesn't trace the initial expression, only the result and the intermediate steps.
       // This keeps the trace output more concise.
