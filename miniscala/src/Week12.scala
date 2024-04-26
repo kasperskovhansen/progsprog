@@ -132,6 +132,14 @@ object Week12 {
     val unzipped = unzip(zipped)
     println(s"Unzipped: $unzipped")
 
+    val cyclic: Stream[Int] = {
+      def gen(a: Int): Stream[Int] = SCons(() => a, () => gen((a-1).abs))
+      gen(0)
+    }
+
+    println("Cyclic:")
+    cyclic.take(10).foreach(println)
+
     println("Fibonacci:")
     fibs.take(25).foreach(println)
 

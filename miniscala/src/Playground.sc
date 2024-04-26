@@ -1,11 +1,11 @@
 
 
-class C[+T](a: T) {
+class C[T](a: T) {
   var b: T = a
 }
 
 sealed abstract class List[+T] {
-  def concat(xs: List[T]): List[T] = this match {
+  def concat[U >: T](xs: List[U]): List[U] = this match {
     case Nil => xs
     case Cons(z, zs) => Cons(z, zs.concat(xs))
   }
