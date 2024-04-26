@@ -106,7 +106,6 @@ object TypeChecker {
         throw TypeError(s"Type mismatch at if, then and else have different types ${unparse(thentype)} and ${unparse(elsetype)}", e)
       thentype
     case BlockExp(vals, vars, defs, classes, exps) =>
-      var ctenv1 = ctenv
       var tenv1 = tenv
       for (d <- vals) {
         val t = typeCheck(d.exp, tenv1, ctenv)
@@ -121,7 +120,7 @@ object TypeChecker {
         tenv1 = tenv1 + (d.x -> MutableType(d.opttype.getOrElse(t)))
       }
       for (d <- defs) {
-        val funType = makeFunType(d)
+        val funType = getType(makeFunType(d), ctenv)
         tenv1 = tenv1 + (d.fun -> funType)
       }
       for (d <- defs) {
@@ -130,14 +129,13 @@ object TypeChecker {
           tenv2 = tenv2 + (p.x -> getType(p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p)), ctenv))
         }
         val funType = makeFunType(d)
-        checkSubtype(funType._2, Some(typeCheck(d.body, tenv2, ctenv)), d)
+        checkSubtype(getType(funType._2, ctenv), Some(typeCheck(d.body, tenv2, ctenv)), d)
       }
+      val ctenv1 = rebindClasses(ctenv, classes)
       for (c <- classes) {
         var tenv2 = tenv1
-        val staticClassType = makeStaticClassType(c, ctenv, classes)
-        ctenv1 = ctenv1 + (c.klass -> staticClassType)
         for (p <- c.params) {
-          tenv2 = tenv2 + (p.x -> p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p)))
+          tenv2 = tenv2 + (p.x -> getType(p.opttype.getOrElse(throw TypeError(s"Type annotation missing at parameter ${p.x}", p)), ctenv1))
         }
         typeCheck(c.body, tenv2, ctenv1)
       }
@@ -169,7 +167,7 @@ object TypeChecker {
       val argTypePairs = fun.paramtypes.zip(args)
       for ((t, a) <- argTypePairs) {
         val argType = typeCheck(a, tenv, ctenv)
-        checkSubtype(argType, getType(Some(t), ctenv), e)
+        checkSubtype(argType, t, e)
       }
       fun.restype
     case LambdaExp(params, body) =>
@@ -238,7 +236,7 @@ object TypeChecker {
     case IntType() | BoolType() | FloatType() | StringType() | NullType() => t
     case TupleType(ts) => TupleType(ts.map(tt => getType(tt, ctenv)))
     case FunType(paramtypes, restype) => FunType(paramtypes.map(tt => getType(tt, ctenv)), getType(restype, ctenv))
-    case _ => throw RuntimeException(s"Unexpected type $t") // this case is unreachable...
+    case _ => throw RuntimeException(s"Unexpected type ${unparse(t)}") // this case is unreachable...
   }
 
   /**
@@ -293,8 +291,8 @@ object TypeChecker {
   def subtype(t1: Type, t2: Type): Boolean = {
     (t1, t2) match {
       case (IntType(), FloatType()) => true
-      case (NullType(), ClassNameType(_)) => true
       case (NullType(), StaticClassType(_, _, _, _, _)) => true
+      case (StaticClassType(posA, _, _, _, _), StaticClassType(posB, _, _, _, _)) => posA == posB
       case (TupleType(ts1), TupleType(ts2)) => ts1.zip(ts2).forall { (tt1, tt2) => subtype(tt1, tt2) }
       case (FunType(pt1, restype1), FunType(pt2, restype2)) =>
         pt1.zip(pt2).forall {  (tt1, tt2) => subtype(tt2, tt1) } && subtype(restype1, restype2)

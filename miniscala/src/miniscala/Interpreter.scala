@@ -336,9 +336,8 @@ object Interpreter {
     case LookupExp(objexp, member) =>
       trace(s"Looking up member $member of object: ${Unparser.unparse(e)}")
       val (objval, sto1) = eval(objexp, env, cenv, sto)
-      if (objval == ObjRefVal(-1, None))
-        throw InterpreterError(s"Null pointer exception when looking up $member", e)
       val (valres, sto2) = objval match {
+        case ObjRefVal(-1, _) => throw InterpreterError(s"Null pointer exception when looking up $member", e)
         case ObjRefVal(loc, _) =>
           trace(s"Object value is an object reference, looking up in store")
           sto1(loc) match {
@@ -490,7 +489,9 @@ object Interpreter {
           for ((p, t) <- cparams.zip(paramtypes))
             checkTypesEqual(t, getType(p.opttype, cenv), n)
           checkTypesEqual(restype, getType(optcrestype, cenv), n)
-        case (ObjRefVal(-1, None), td: DynamicClassType) => // null value
+        case (ObjRefVal(-1, _), td: NullType) => // null value
+          // do nothing
+        case (ObjRefVal(-1, _), td: DynamicClassType) => // null value
           // do nothing
         case (ObjRefVal(_, Some(vd: DynamicClassType)), td: DynamicClassType) =>
           if (vd != td)

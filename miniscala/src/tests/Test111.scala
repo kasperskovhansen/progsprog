@@ -54,6 +54,7 @@ object Test111 {
                |}""".stripMargin, IntType())
     testType("{ class A(x: Int) { val x: Int = x }; { def f(a: A): Int = a.x; f(new A(2)) } }", IntType())
     testType("{ class A() { }; class B(a: A) { }; new B(new A()) ; {} }", unitType)
+    testType("{ class A() { val x: B = null }; class B(a: A) { val y: A = null }; new B(new A()) ; {} }", unitType)
 
     println("All tests passed successfully!")
   }
