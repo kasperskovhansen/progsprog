@@ -1,7 +1,7 @@
 package miniscala
 
 import miniscala.Ast.MiniScalaError
-import miniscala.parser.Parser
+import miniscala.parser.{Files, Parser}
 
 object Main {
 
@@ -13,27 +13,51 @@ object Main {
       // read the command-line arguments
       Options.read(args)
 
-      // parse the program
-      val program = Parser.parse(Parser.readFile(Options.file))
+      // load and execute abstract machine code, if enabled
+      if (Options.machine) {
+        val bin = Files.load(Options.file)
+        println(s"Executable (symbolic form): $bin")
+        val initialEnv = AbstractMachine.makeInitialEnv(bin)
+        val result = AbstractMachine.execute(bin, initialEnv)
+        println(s"Output: $result")
 
-      // unparse the program, if enabled
-      if (Options.unparse)
-        println(Unparser.unparse(program))
+      } else {
 
-      // type check the program, if enabled
-      if (Options.types) {
-        val initialTypeEnv = TypeChecker.makeInitialTypeEnv(program)
-        TypeChecker.typeCheck(program, initialTypeEnv, Map())
-      }
+        // parse the program
+        val program = Parser.parse(Parser.readFile(Options.file))
 
-      // execute the program, if enabled
-      if (Options.run) {
-        // Functional approach:
-        val initialEnv = Interpreter.makeInitialEnv(program)
-        val (result, _) = Interpreter.eval(program, initialEnv, Map(), Map())
-        // Object-oriented style:
-        // val result = program.eval()
-        println(s"Output: ${Interpreter.valueToString(result)}")
+        // unparse the program, if enabled
+        if (Options.unparse)
+          println(Unparser.unparse(program))
+
+        // type check the program, if enabled
+        if (Options.types) {
+          val initialTypeEnv = TypeChecker.makeInitialTypeEnv(program)
+          TypeChecker.typeCheck(program, initialTypeEnv, Map())
+        }
+
+        // execute the program, if enabled
+        if (Options.run) {
+          val initialEnv = Interpreter.makeInitialEnv(program)
+          val (result, _) = Interpreter.eval(program, initialEnv, Map(), Map())
+          println(s"Output: ${Interpreter.valueToString(result)}")
+        }
+
+        // compile to abstract machine code, if enabled
+        if (Options.compile) {
+          val outfile = (if (Options.file.endsWith(".s")) Options.file.substring(0, Options.file.length - 2) else Options.file) + ".sam"
+          val bin = Compiler.compile(program)
+          println(s"Executable (symbolic form): $bin")
+          println(s"Writing executable to $outfile")
+          Files.save(bin, outfile)
+        }
+
+        // execute the program, if enabled
+        if (Options.run) {
+          val initialEnv = Interpreter.makeInitialEnv(program)
+          val (result, _) = Interpreter.eval(program, initialEnv, Map(), Map())
+          println(s"Output: ${Interpreter.valueToString(result)}")
+        }
       }
 
     } catch { // report all errors to the console

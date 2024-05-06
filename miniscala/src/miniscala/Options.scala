@@ -16,6 +16,8 @@ object Options {
       |  -run      parse and run the program
       |  -types    parse and type-check the program
       |  -trace    trace when running
+      |  -compile  parse and compile to abstract machine code
+      |  -machine  load and run abstract machine code
     """.stripMargin
 
   var unparse = false
@@ -25,6 +27,10 @@ object Options {
   var types = false
 
   var trace = false
+
+  var compile = false
+
+  var machine = false
 
   var file: String = _
 
@@ -39,6 +45,8 @@ object Options {
           case "-run" => run = true
           case "-types" => types = true
           case "-trace" => trace = true
+          case "-compile" => compile = true
+          case "-machine" => machine = true
           case _ =>
             throw OptionsError(s"Error: option not recognized: $arg")
         }
