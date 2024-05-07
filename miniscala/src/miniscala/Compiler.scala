@@ -22,33 +22,39 @@ object Compiler {
       case IntLit(c) =>
         List(Const(c))
       case BoolLit(true) =>
-        ???
+        List(True)
       case BoolLit(false) =>
-        ???
+        List(False)
       case BinOpExp(leftexp, op, rightexp) =>
         compile(leftexp, idstack) ++ compile(rightexp, idstack) ++ List(op match {
           case PlusBinOp() => Add
           case MinusBinOp() => Sub
           case MultBinOp() => Mul
           case DivBinOp() => Div
-          case EqualBinOp() => ???
-          case LessThanBinOp() => ???
-          case LessThanOrEqualBinOp() => ???
-          case AndBinOp() => ???
-          case OrBinOp() => ???
+          case EqualBinOp() => Eq
+          case LessThanBinOp() => Lt
+          case LessThanOrEqualBinOp() => Leq
+          case AndBinOp() => And
+          case OrBinOp() => Or
           case _ => throw UnsupportedFeatureError(e)
         })
       case UnOpExp(op, exp) =>
         compile(exp, idstack) ++ List(op match {
           case NegUnOp() => Neg
-          case NotUnOp() => ???
+          case NotUnOp() => Not
         })
       case IfThenElseExp(condexp, thenexp, elseexp) =>
         compile(condexp, idstack) ++ List(Branch(compile(thenexp, idstack), compile(elseexp, idstack)))
       case BlockExp(vals, Nil, Nil, Nil, List(exp)) =>
-        ???
+        def compileVals(vals: List[ValDecl], idstack: List[Id]): (List[Instruction], List[Id]) = {
+          if (vals.isEmpty) return (List(), idstack)
+          val (tailCompiled, tailIdStack) = compileVals(vals.tail, vals.head.x::idstack)
+          (compile(vals.head.exp, idstack) ++ List(EnterScope) ++ tailCompiled, tailIdStack)
+        }
+        val (instructions, extendedIdStack) = compileVals(vals, idstack)
+        instructions ++ compile(exp, extendedIdStack) ++ List(ExitScope(vals.length))
       case VarExp(x) =>
-        ???
+        List(Read(lookup(x, idstack)))
       case _ => throw UnsupportedFeatureError(e)
     }
 

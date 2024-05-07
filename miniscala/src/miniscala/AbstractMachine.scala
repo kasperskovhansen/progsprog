@@ -64,32 +64,43 @@ object AbstractMachine {
             val c1 = opstack.pop()
             opstack.push(c1 / c2)
           case Eq =>
-            ???
+            val c2 = opstack.pop()
+            val c1 = opstack.pop()
+            opstack.push(if c1 == c2 then 1 else 0)
           case Lt =>
-            ???
+            val c2 = opstack.pop()
+            val c1 = opstack.pop()
+            opstack.push(if c1 < c2 then 1 else 0)
           case Leq =>
-            ???
+            val c2 = opstack.pop()
+            val c1 = opstack.pop()
+            opstack.push(if c1 <= c2 then 1 else 0)
           case And =>
-            ???
+            val c2 = opstack.pop()
+            val c1 = opstack.pop()
+            opstack.push(if c1 + c2 >= 2 then 1 else 0)
           case Or =>
-            ???
+            val c2 = opstack.pop()
+            val c1 = opstack.pop()
+            opstack.push(if c1 + c2 >= 1 then 1 else 0)
           case Neg =>
             val c = opstack.pop()
             opstack.push(-c)
           case Not =>
-            ???
+            val c = opstack.pop()
+            opstack.push(if c == 0 then 1 else 0)
           case Branch(thencode, elsecode) =>
             if (opstack.pop() == 1)
               code = thencode ++ code
             else
               code = elsecode ++ code
           case EnterScope =>
-            ???
+            envstack.push(opstack.pop())
           case ExitScope(num) =>
             for (_ <- 1 to num)
               envstack.pop()
           case Read(index) =>
-            ???
+            opstack.push(envstack(index))
         }
       }
       opstack.pop()
