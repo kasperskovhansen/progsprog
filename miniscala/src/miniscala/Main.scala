@@ -18,8 +18,10 @@ object Main {
         val bin = Files.load(Options.file)
         println(s"Executable (symbolic form): $bin")
         val initialEnv = AbstractMachine.makeInitialEnv(bin)
-        val result = AbstractMachine.execute(bin, initialEnv)
-        println(s"Output: $result")
+        time {
+          val result = AbstractMachine.execute(bin, initialEnv)
+          println(s"Output: $result")
+        }
 
       } else {
 
@@ -39,8 +41,10 @@ object Main {
         // execute the program, if enabled
         if (Options.run) {
           val initialEnv = Interpreter.makeInitialEnv(program)
-          val (result, _) = Interpreter.eval(program, initialEnv, Map(), Map())
-          println(s"Output: ${Interpreter.valueToString(result)}")
+          time {
+            val (result, _) = Interpreter.eval(program, initialEnv, Map(), Map())
+            println(s"Output: ${Interpreter.valueToString(result)}")
+          }
         }
 
         // compile to abstract machine code, if enabled
@@ -67,5 +71,12 @@ object Main {
       case e: MiniScalaError =>
         println(e.getMessage)
     }
+  }
+
+  def time(block: => Unit): Unit = {
+    val t0 = System.nanoTime()
+    block
+    val t1 = System.nanoTime()
+    println("Elapsed time: " + (t1 - t0)/1000000 + "ms")
   }
 }
