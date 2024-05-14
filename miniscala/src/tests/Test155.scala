@@ -15,6 +15,8 @@ object Test155 {
     test("{ val x = 2; val y = x; x + y }", 4)
     test("{ val x = 2; def g() = { x + 1 }; g() }", 3)
     test("{ val x = 2; var y = 2; def g() = { y = 1; y + 1 }; g() }", 2)
+    test("{ val x = 2; val y = x; y }", 2)
+    test("{ var x = 2; x = x * 2; x = x + 1; x  }", 5)
     test("{ def g(n: Int) = n + 2; g(4) }", 6)
     test("{ var x = 0; while(x < 5) { x = x + 1 }; x }", 5)
     test("{def fac(n: Int): Int = {def f(n: Int, acc: Int): Int = if (n == 0) acc else f(n - 1, n * acc); f(n, 1)}; fac(5)}", 120)
