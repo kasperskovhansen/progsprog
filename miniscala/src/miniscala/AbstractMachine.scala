@@ -39,7 +39,6 @@ object AbstractMachine {
   type IdIndex = Int // index of identifier in envstack
 
   def execute(program: Executable, initialEnv: List[Int]): Int = {
-    println(program)
     sealed abstract class Value
     case class IntVal(c: Int) extends Value
     case class RefVal(loc: Loc) extends Value
@@ -161,14 +160,15 @@ object AbstractMachine {
               frame.envstack.push(cl)
             }
           case Call(arity, tailcall) =>
-            val newframe = if (tailcall) then frame else new Frame
+            val newframe = new Frame
             for (_ <- 1 to arity) // passes the values of the parameters
               newframe.envstack.push(frame.opstack.pop())
             val cl = popClosure()
             for (v <- cl.env.reverse) // copies the values of the free identifiers (excluding defs in same block) followed by all the defs
               newframe.envstack.push(v)
             newframe.code = cl.body
-            callstack.push(frame)
+            if (!tailcall) 
+              callstack.push(frame)
             frame = newframe
           case Return =>
             if (callstack.nonEmpty) {

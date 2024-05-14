@@ -1,10 +1,4 @@
 {
-  def fac(n: Int): Int = {
-    def f(n: Int, acc: Int): Int =
-      if (n == 0) acc
-      else f(n - 1, n * acc);
-    f(n, 1)
-  };
-
-  fac(5)
+    var x = 1;
+    if (true) x = 2 else 6
 }

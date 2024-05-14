@@ -66,7 +66,7 @@ object Compiler {
       case IfThenElseExp(condexp, thenexp, elseexp) =>
         compile(condexp, idstack, false) ++ List(Branch(compile(thenexp, idstack, tailpos), compile(elseexp, idstack, tailpos)))
       case WhileExp(cond, body) =>
-        List(Loop(compile(body, idstack, false), compile(cond, idstack, false)), EmptyTuple)
+        List(Loop(compile(cond, idstack, false), compile(body, idstack, false)), EmptyTuple)
       case BlockExp(vals, vars, defs, Nil, exps) =>
         // Vals
         val (valInstructions, idstack1) = vals.foldLeft((List[Instruction](), idstack)) {
@@ -79,18 +79,16 @@ object Compiler {
         val (varInstructions, idstack2) = vars.foldLeft((List[Instruction](), idstack1)) {
           case ((instrs, ids), varDecl) =>
             (instrs ++ List(Alloc, Dup) ++ compile(varDecl.exp, ids, false) ++ List(Store, EnterScope),
-              IdDesc(varDecl.x, false) :: ids
+              IdDesc(varDecl.x, true) :: ids
             )
         }
         // Defs
         val (defInstructions, idstack3) = defs.foldLeft((List[Instruction](), idstack2)) {
           case ((instrs, ids), defDecl) =>
-            // Freeids?
             (instrs ++ compileFun(defDecl.params, defDecl.body, Vars.freeVars(defDecl).toList.sorted, defs, ids),
               IdDesc(defDecl.fun, false) :: ids
             )
         }
-
         val tailExp = exps.last
         val expsInstructions = exps.init.foldLeft(List[Instruction]()) {
           (acc, exp) => compile(exp, idstack3, false) ++ acc
@@ -100,7 +98,7 @@ object Compiler {
           defInstructions ++
           List(EnterScopeDefs(defs.length)) ++
           expsInstructions ++
-          compile(tailExp, idstack3, true) ++
+          compile(tailExp, idstack3, tailpos) ++
           List(ExitScope(vals.length + vars.length + defs.length))
       case VarExp(x) =>
         lookup(x, idstack) match {
@@ -114,11 +112,6 @@ object Compiler {
         compileFun(params, body, Vars.freeVars(e).toList.sorted, Nil, idstack)
       case CallExp(funexp, args) =>
         // compile funexp and args, and then add a Call instruction
-
-        // def g() {
-        //   f(if x then 1 else 2)
-        // }
-
         compile(funexp, idstack, false) ++ args.flatMap(arg => compile(arg, idstack, false)) ++ List(Call(args.length, tailpos))
       case _ => throw UnsupportedFeatureError(e)
     }
