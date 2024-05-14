@@ -30,14 +30,15 @@ object Compiler {
       val defsstack = defs.map(d => IdDesc(d.fun, mutable = false))
       val paramsstack = params.map(p => IdDesc(p.x, mutable = false))
       // compile the function body
-      val bodycode = compile(body, freeidsstack ++ paramsstack ++ defsstack, ???) ++ List(Return)
+      val bodycode = compile(body, freeidsstack ++ defsstack ++ paramsstack, true) ++ List(Return)
       // find idstack index for each free identifier (excluding defs in same block)
       val indices = freenondefs.map(x => lookup(x, idstack)._1)
       // produce a Lambda instruction
       List(AbstractMachine.Lambda(indices, bodycode))
     }
 
-    def compile(e: Exp, idstack: List[IdDesc], tailpos: Boolean): List[Instruction] = e match {
+    def compile(e: Exp, idstack: List[IdDesc], tailpos: Boolean): List[Instruction] =
+      e match {
       case IntLit(c) =>
         List(Const(c))
       case BoolLit(true) =>
@@ -45,7 +46,7 @@ object Compiler {
       case BoolLit(false) =>
         List(False)
       case BinOpExp(leftexp, op, rightexp) =>
-        compile(leftexp, idstack, ???) ++ compile(rightexp, idstack, ???) ++ List(op match {
+        compile(leftexp, idstack, false) ++ compile(rightexp, idstack, false) ++ List(op match {
           case PlusBinOp() => Add
           case MinusBinOp() => Sub
           case MultBinOp() => Mul
@@ -58,38 +59,72 @@ object Compiler {
           case _ => throw UnsupportedFeatureError(e)
         })
       case UnOpExp(op, exp) =>
-        compile(exp, idstack, ???) ++ List(op match {
+        compile(exp, idstack, false) ++ List(op match {
           case NegUnOp() => Neg
           case NotUnOp() => Not
         })
       case IfThenElseExp(condexp, thenexp, elseexp) =>
-        compile(condexp, idstack, ???) ++ List(Branch(compile(thenexp, idstack, ???), compile(elseexp, idstack, ???)))
+        compile(condexp, idstack, false) ++ List(Branch(compile(thenexp, idstack, tailpos), compile(elseexp, idstack, tailpos)))
       case WhileExp(cond, body) =>
-        List(Loop(compile(body, idstack, ???), compile(cond, idstack, ???)), EmptyTuple)
+        List(Loop(compile(body, idstack, false), compile(cond, idstack, false)), EmptyTuple)
       case BlockExp(vals, vars, defs, Nil, exps) =>
-        def compileVals(vals: List[ValDecl], idstack: List[IdDesc]): (List[Instruction], List[IdDesc]) = {
-          if (vals.isEmpty) return (List(), idstack)
-          val (tailCompiled, tailIdStack) = compileVals(vals.tail, IdDesc(vals.head.x, false)::idstack)
-          (compile(vals.head.exp, idstack, false) ++ List(EnterScope) ++ tailCompiled, tailIdStack)
+        // Vals
+        val (valInstructions, idstack1) = vals.foldLeft((List[Instruction](), idstack)) {
+          case ((instrs, ids), valDecl) =>
+            (instrs ++ compile(valDecl.exp, ids, false) ++ List(EnterScope),
+              IdDesc(valDecl.x, false) :: ids
+            )
         }
-        val (valInstructions, extendedIdStack) = compileVals(vals, idstack)
+        // Vars
+        val (varInstructions, idstack2) = vars.foldLeft((List[Instruction](), idstack1)) {
+          case ((instrs, ids), varDecl) =>
+            (instrs ++ List(Alloc, Dup) ++ compile(varDecl.exp, ids, false) ++ List(Store, EnterScope),
+              IdDesc(varDecl.x, false) :: ids
+            )
+        }
+        // Defs
+        val (defInstructions, idstack3) = defs.foldLeft((List[Instruction](), idstack2)) {
+          case ((instrs, ids), defDecl) =>
+            // Freeids?
+            (instrs ++ compileFun(defDecl.params, defDecl.body, Vars.freeVars(defDecl).toList.sorted, defs, ids),
+              IdDesc(defDecl.fun, false) :: ids
+            )
+        }
+
         val tailExp = exps.last
-        val expsInstructions = exps.slice(0, exps.length-1).foldLeft(List[Instruction]()){(acc, exp) => compile(exp, extendedIdStack, false)++acc}
-        valInstructions ++ expsInstructions ++ compile(tailExp, extendedIdStack, true) ++ List(ExitScope(vals.length))
+        val expsInstructions = exps.init.foldLeft(List[Instruction]()) {
+          (acc, exp) => compile(exp, idstack3, false) ++ acc
+        }
+        valInstructions ++
+          varInstructions ++
+          defInstructions ++
+          List(EnterScopeDefs(defs.length)) ++
+          expsInstructions ++
+          compile(tailExp, idstack3, true) ++
+          List(ExitScope(vals.length + vars.length + defs.length))
       case VarExp(x) =>
-        List(Read(lookup(x, idstack)._1))
+        lookup(x, idstack) match {
+          case (index, true) => List(Read(index), Load)
+          case (index, false) => List(Read(index))
+        }
       case AssignmentExp(x, exp) =>
-        ???
+        val index = lookup(x, idstack)._1
+        List(Read(index)) ++ compile(exp, idstack, tailpos) ++ List(Store, EmptyTuple)
       case LambdaExp(params, body) =>
         compileFun(params, body, Vars.freeVars(e).toList.sorted, Nil, idstack)
       case CallExp(funexp, args) =>
         // compile funexp and args, and then add a Call instruction
-        compile(funexp, idstack, ???) ++ args.flatMap(arg => compile(arg, idstack, ???)) ++ List(Call(args.length, tailpos))
+
+        // def g() {
+        //   f(if x then 1 else 2)
+        // }
+
+        compile(funexp, idstack, false) ++ args.flatMap(arg => compile(arg, idstack, false)) ++ List(Call(args.length, tailpos))
       case _ => throw UnsupportedFeatureError(e)
     }
 
     val freeids = Vars.freeVars(e).toList.sorted
-    Executable(freeids, compile(e, freeids.map(x => IdDesc(x, mutable = false)), ???))
+    Executable(freeids, compile(e, freeids.map(x => IdDesc(x, mutable = false)), true))
   }
 
   class UnsupportedFeatureError(node: AstNode) extends MiniScalaError(s"Sorry, I don't know how to compile $node", node.pos)

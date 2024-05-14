@@ -39,7 +39,7 @@ object AbstractMachine {
   type IdIndex = Int // index of identifier in envstack
 
   def execute(program: Executable, initialEnv: List[Int]): Int = {
-
+    println(program)
     sealed abstract class Value
     case class IntVal(c: Int) extends Value
     case class RefVal(loc: Loc) extends Value
@@ -133,7 +133,7 @@ object AbstractMachine {
             else
               frame.code = elsecode ++ frame.code
           case Loop(condcode, bodycode) =>
-            frame.code = Branch(bodycode ++ List(Loop(condcode, bodycode)), Nil) :: frame.code
+            frame.code = condcode ++ (Branch(bodycode ++ List(Loop(condcode, bodycode)), Nil) :: frame.code)
           case EnterScope =>
             frame.envstack.push(frame.opstack.pop())
           case ExitScope(num) =>
@@ -146,9 +146,9 @@ object AbstractMachine {
             store += IntVal(0)
           case Load =>
             val loc = popLoc()
-            frame.envstack.push(store(loc))
+            frame.opstack.push(store(loc))
           case Store =>
-            val v = frame.opstack.pop()
+            val v = frame.opstack.pop() // Perhaps popInt() instead?
             val loc = popLoc()
             store(loc) = v
           case Lambda(freeids, body) =>
@@ -161,7 +161,7 @@ object AbstractMachine {
               frame.envstack.push(cl)
             }
           case Call(arity, tailcall) =>
-            val newframe = new Frame
+            val newframe = if (tailcall) then frame else new Frame
             for (_ <- 1 to arity) // passes the values of the parameters
               newframe.envstack.push(frame.opstack.pop())
             val cl = popClosure()
