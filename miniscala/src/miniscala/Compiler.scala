@@ -91,7 +91,7 @@ object Compiler {
         }
         val tailExp = exps.last
         val expsInstructions = exps.init.foldLeft(List[Instruction]()) {
-          (acc, exp) => compile(exp, idstack3, false) ++ acc
+          (acc, exp) => compile(exp, idstack3, false) ++ List(Pop) ++ acc
         }
         valInstructions ++
           varInstructions ++

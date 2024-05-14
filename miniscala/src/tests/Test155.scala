@@ -16,14 +16,18 @@ object Test155 {
     test("{ val x = 2; def g() = { x + 1 }; g() }", 3)
     test("{ val x = 2; var y = 2; def g() = { y = 1; y + 1 }; g() }", 2)
     test("{ def g(n: Int) = n + 2; g(4) }", 6)
-    //    Options.trace = true
-    //    test("{\n  def fac(n: Int): Int = {\n    def f(n: Int, acc: Int): Int =\n      if (n == 0) acc\n      else f(n - 1, n * acc);\n    f(n, 1)\n  };\n\n  fac(5)\n}", 120)
-
-    //    validate(List(Const(4), EnterScope, Alloc, Dup, Const(2), Store, EnterScope, EnterScopeDefs(0), Read(1), Read(0), Load, Mul, Const(2), Add, ExitScope(2)))
-    Options.compile = true
     test("{ var x = 0; while(x < 5) { x = x + 1 }; x }", 5)
+    test("{def fac(n: Int): Int = {def f(n: Int, acc: Int): Int = if (n == 0) acc else f(n - 1, n * acc); f(n, 1)}; fac(5)}", 120)
 
-    validate(List(Alloc, Dup, Const(0), Store, EnterScope, EnterScopeDefs(0), Loop(List(Read(0), Load, Const(5), Lt),List(EnterScopeDefs(0), Read(0), Read(0), Load, Const(1), Add, Store, Const(0), ExitScope(0), Pop)), Const(0), Read(0), Load, ExitScope(1)))
+    println("nr1")
+    validate(List(Alloc, Dup, Const(0), Store, EnterScope, EnterScopeDefs(0), Loop(List(Read(0), Load, Const(5), Lt),List(EnterScopeDefs(0), Read(0), Read(0), Load, Const(1), Add, Store, Const(0), ExitScope(0), Pop)), Const(0), Pop, Read(0), Load, ExitScope(1)))
+    println("nr2")
+    validate(List(Alloc, Dup, Const(1), Store, EnterScope, EnterScopeDefs(0), Const(1), Branch(List(Const(5)),List(Const(6))), ExitScope(1)))
+    println("nr3")
+    //validate(List(Pop))
+    println("nr4")
+    validate(List(Alloc, Dup, Const(1), Store, EnterScope, Alloc, Dup, Alloc, Dup, Const(2), Store, EnterScope, EnterScopeDefs(0), Read(1), EnterScopeDefs(0), Read(0), Const(3), Store, Const(0), Pop, Read(1), Load, ExitScope(0), Read(0), Load, Add, Store, Const(0), Pop, Const(9), ExitScope(1), Store, EnterScope, EnterScopeDefs(0), Read(0), Const(7), Store, Const(0), Pop, Read(1), Load, Read(0), Load, Add, Pop, Read(1), Load, Read(0), Load, Add, ExitScope(2)))
+
     println("All tests passed successfully!")
   }
 

@@ -17,7 +17,14 @@ object Validator {
     }
 
     while (code.nonEmpty) {
+
       val inst = code.head
+
+      println(s"Code:          $code")
+      println(s"Instruction:   $inst")
+      println(s"Opheight  (b): $opheight")
+      println(s"Envheight (b): $envheight")
+
       code = code.tail
       inst match
         case Const(c) => opheight += 1
@@ -48,7 +55,6 @@ object Validator {
           assertOpHeight(min = 0)
           validate(condcode)
           validate(bodycode)
-          opheight += 1
         case EnterScope =>
           assertOpHeight(min = 1)
           opheight -= 1
@@ -74,8 +80,11 @@ object Validator {
         // case Call(arity, tailcall) => ???
         // case Return => ???
         case _ => ()
+        
+      println(s"Opheight  (a): $opheight")
+      println(s"Envheight (a): $envheight")
+      println(s"-------------------------")
+
     }
-    println((opheight, envheight))
-    return
   }
 }
